@@ -90,7 +90,12 @@ func decrypt(dst []byte, src []byte, block cipher.Block) {
 	}
 }
 
-func copy(w io.Writer, wPwd string, r io.Reader, rPwd string) {
+func copy(w net.Conn, wPwd string, r net.Conn, rPwd string) {
+	defer func() {
+		w.Close()
+		r.Close()
+	}()
+
 	if rPwd != "" && wPwd != "" {
 		rBuf0, wBuf0, mBuf0 := make([]byte, BUFSIZE), make([]byte, BUFSIZE), make([]byte, BUFSIZE)
 		sBuf := make([]byte, 4)
