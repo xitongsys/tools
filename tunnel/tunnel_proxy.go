@@ -6,7 +6,6 @@ import (
 )
 
 type TunnelProxy struct {
-	Daemon   bool
 	Password [8]uint8
 
 	// listener
