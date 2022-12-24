@@ -64,6 +64,7 @@ func ReadMsg(conn net.Conn, buffer []uint8) (Msg, error) {
 	}
 
 	msg, err := deserialize(buffer)
+
 	return msg, err
 }
 

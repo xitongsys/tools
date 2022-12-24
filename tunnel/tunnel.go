@@ -162,6 +162,7 @@ func (tun *Tunnel) TunHandler() {
 						if _, err := conn.Write(msg.Data); err != nil {
 							tun.CloseConn(msg.Id, true)
 						}
+
 					} else {
 						tun.CloseConn(msg.Id, true)
 					}

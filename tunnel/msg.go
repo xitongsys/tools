@@ -148,7 +148,7 @@ func deserialize(buf []uint8) (Msg, error) {
 	tp = MsgType(buf[0])
 	offset += 1
 
-	ln = binary.LittleEndian.Uint32(buf[offset:])
+	ln = binary.LittleEndian.Uint32(buf[offset : offset+4])
 	offset += 4
 
 	if ln+5 > uint32(len(buf)) {
@@ -212,9 +212,10 @@ func deserialize(buf []uint8) (Msg, error) {
 		if offset+int(ln) > len(buf) || int(ln) < 0 {
 			goto ERROR
 		}
-		msg.Data = make([]byte, ln)
-		copy(msg.Data, buf[offset:offset+int(ln)])
-		offset += int(ln)
+		dataLen := ln - 8
+		msg.Data = make([]byte, dataLen)
+		copy(msg.Data, buf[offset:offset+int(dataLen)])
+		offset += int(dataLen)
 
 		msgi = msg
 	}
