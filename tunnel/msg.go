@@ -24,9 +24,9 @@ type Msg interface {
 
 // open new tunnel
 type MsgTun struct {
-	Direction uint8
-	Addr      uint64
-	Password  [8]uint8
+	Role     uint8
+	Addr     uint64
+	Password [8]uint8
 }
 
 func (msgtun *MsgTun) Len() uint32 {
@@ -102,7 +102,7 @@ func serialize(msgi Msg, buf []uint8) (uint32, error) {
 	if tp == TUN {
 		msg := msgi.(*MsgTun)
 
-		buf[offset] = msg.Direction
+		buf[offset] = msg.Role
 		offset++
 
 		binary.LittleEndian.PutUint64(buf[offset:], msg.Addr)
@@ -161,7 +161,7 @@ func deserialize(buf []uint8) (Msg, error) {
 		if offset+1 > len(buf) {
 			goto ERROR
 		}
-		msg.Direction = buf[offset]
+		msg.Role = buf[offset]
 		offset += 1
 
 		if offset+8 > len(buf) {

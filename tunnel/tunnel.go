@@ -12,8 +12,9 @@ const (
 )
 
 type Tunnel struct {
-	Direction uint8
-	Addr      string
+	// L: listener, C: client
+	Role uint8
+	Addr string
 
 	TunConn     net.Conn
 	InBuffer    []byte
@@ -27,10 +28,10 @@ type Tunnel struct {
 	Error error
 }
 
-func NewTunnel(direction uint8, addr string, tunConn net.Conn) *Tunnel {
+func NewTunnel(role uint8, addr string, tunConn net.Conn) *Tunnel {
 	tun := &Tunnel{
-		Direction: direction,
-		Addr:      addr,
+		Role: role,
+		Addr: addr,
 
 		TunConn:   tunConn,
 		InBuffer:  make([]byte, BUFFER_SIZE),
@@ -63,7 +64,7 @@ func (tun *Tunnel) NewId() uint64 {
 }
 
 func (tun *Tunnel) Run() {
-	if tun.Direction == 'L' {
+	if tun.Role == 'L' {
 		tun.RunListener()
 	} else {
 		tun.RunClient()
@@ -147,7 +148,7 @@ func (tun *Tunnel) TunHandler() {
 	var msgi Msg
 
 	// listener
-	if tun.Direction == 'L' {
+	if tun.Role == 'L' {
 		for tun.Error == nil {
 			if msgi, tun.Error = tun.ReadMsg(); tun.Error == nil {
 				if msgi.Type() == PACK {
