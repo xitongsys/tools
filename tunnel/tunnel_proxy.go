@@ -47,6 +47,8 @@ func (tp *TunnelProxy) TunConnHandler(tunConn net.Conn) {
 		var addr string
 		addr, err = Int2Addr(msg.Addr)
 		if err == nil {
+			log.Println("new tunnel: ", addr)
+
 			tun := NewTunnel(msg.Role, addr, tunConn)
 			go tun.Run()
 		}
