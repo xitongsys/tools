@@ -1,11 +1,9 @@
 package main
 
 import (
-	"encoding/binary"
 	"fmt"
-	"io"
-	"log"
 	"net"
+	"sync"
 )
 
 const (
@@ -17,17 +15,16 @@ type Tunnel struct {
 	Direction uint8
 	Addr      string
 
-	TunConn   net.Conn
-	InBuffer  []byte
-	OutBuffer []byte
+	TunConn     net.Conn
+	InBuffer    []byte
+	OutBuffer   []byte
+	BufferMutex sync.Mutex
 
-	ConnsCnt uint64
-	Conns    map[uint64]net.Conn
+	ConnsCnt   uint64
+	Conns      map[uint64]net.Conn
+	ConnsMutex sync.Mutex
 
-	// listener
-
-	// client
-
+	Error error
 }
 
 func NewTunnel(direction uint8, addr string, tunConn net.Conn) *Tunnel {
@@ -47,82 +44,170 @@ func NewTunnel(direction uint8, addr string, tunConn net.Conn) *Tunnel {
 }
 
 func (tun *Tunnel) ReadMsg() (Msg, error) {
-	if _, err := io.ReadFull(tun.TunConn, tun.InBuffer[:5]); err != nil {
-		return nil, err
-	}
-
-	_, ln := MsgType(tun.InBuffer[0]), binary.LittleEndian.Uint32(tun.InBuffer[1:5])
-	if ln+5 > uint32(len(tun.InBuffer)) {
-		return nil, fmt.Errorf("msg too big %v", ln)
-	}
-
-	if _, err := io.ReadFull(tun.TunConn, tun.InBuffer[5:5+ln]); err != nil {
-		return nil, err
-	}
-
-	msg, err := deserialize(tun.InBuffer)
-	return msg, err
+	return ReadMsg(tun.TunConn, tun.InBuffer)
 }
 
 func (tun *Tunnel) WriteMsg(msg Msg) error {
-	n, err := serialize(msg, tun.OutBuffer)
-	if err != nil {
-		return err
-	}
+	tun.BufferMutex.Lock()
+	defer tun.BufferMutex.Unlock()
 
-	_, err = tun.TunConn.Write(tun.OutBuffer[:n])
-	return err
+	return WriteMsg(tun.TunConn, tun.OutBuffer, msg)
 }
 
 func (tun *Tunnel) NewId() uint64 {
+	tun.ConnsMutex.Lock()
+	defer tun.ConnsMutex.Unlock()
+
 	tun.ConnsCnt++
 	return tun.ConnsCnt
 }
 
-func (tun *Tunnel) RunListener() error {
+func (tun *Tunnel) Run() {
+	if tun.Direction == 'L' {
+		tun.RunListener()
+	} else {
+		tun.RunClient()
+	}
+}
+
+func (tun *Tunnel) RunListener() {
+	go tun.TunHandler()
+
 	listen, err := net.Listen("tcp", tun.Addr)
 	if err != nil {
-		return err
+		return
 	}
 	defer listen.Close()
 
-	for {
-		conn, err := listen.Accept()
-		if err != nil {
-			log.Println(err)
-			continue
-		}
+	msg := &MsgConn{}
+	var conn net.Conn
 
-		tun.OpenConn(conn)
+	for tun.Error == nil {
+		if conn, tun.Error = listen.Accept(); tun.Error == nil {
+			msg.Id = tun.NewId()
+			if tun.Error = tun.WriteMsg(msg); tun.Error == nil {
+				tun.OpenConn(msg.Id, conn)
+			}
+		}
 	}
 }
 
+func (tun *Tunnel) RunClient() {
+	tun.TunHandler()
+}
+
 // open new connection
-func (tun *Tunnel) OpenConn(conn net.Conn) {
-	id := tun.NewId()
+func (tun *Tunnel) OpenConn(id uint64, conn net.Conn) {
+	tun.ConnsMutex.Lock()
+	defer tun.ConnsMutex.Unlock()
+
 	tun.Conns[id] = conn
-	go tun.ConnectHandler(conn, id)
+	go tun.ConnHandler(conn, id)
 }
 
 // close connection
-func (tun *Tunnel) CloseConn(id uint64) {
-	delete(tun.Conns, id)
+func (tun *Tunnel) CloseConn(id uint64, notify bool) {
+	tun.ConnsMutex.Lock()
+	conn, ok := tun.Conns[id]
+	if ok {
+		conn.Close()
+		delete(tun.Conns, id)
+	}
+	tun.ConnsMutex.Unlock()
+
+	if notify {
+		msg := &MsgClose{
+			Id: id,
+		}
+		tun.Error = tun.WriteMsg(msg)
+	}
 }
 
 // conn -> tunnel
-func (tun *Tunnel) ConnectHandler(conn net.Conn, id uint64) {
+func (tun *Tunnel) ConnHandler(conn net.Conn, id uint64) {
 	buf := make([]uint8, PACK_SIZE)
 	msg := &MsgPack{
 		Id: id,
 	}
 
 	n, err := 0, error(nil)
-	for err == nil {
+	for tun.Error == nil && err == nil {
 		if n, err = conn.Read(buf); n > 0 && err == nil {
 			msg.Data = buf[:n]
-			err = tun.WriteMsg(msg)
+			tun.Error = tun.WriteMsg(msg)
+
+		} else if err != nil {
+			tun.CloseConn(id, true)
 		}
 	}
+}
 
-	tun.CloseConn(id)
+// tunnel -> conn
+func (tun *Tunnel) TunHandler() {
+	var msgi Msg
+
+	// listener
+	if tun.Direction == 'L' {
+		for tun.Error == nil {
+			if msgi, tun.Error = tun.ReadMsg(); tun.Error == nil {
+				if msgi.Type() == PACK {
+					msg := msgi.(*MsgPack)
+
+					tun.ConnsMutex.Lock()
+					conn, ok := tun.Conns[msg.Id]
+					tun.ConnsMutex.Unlock()
+					if ok {
+						if _, err := conn.Write(msg.Data); err != nil {
+							tun.CloseConn(msg.Id, true)
+						}
+					} else {
+						tun.CloseConn(msg.Id, true)
+					}
+
+				} else if msgi.Type() == CLOSE {
+					msg := msgi.(*MsgClose)
+					tun.CloseConn(msg.Id, false)
+
+				} else {
+					tun.Error = fmt.Errorf("illegal msg type %v", msgi.Type())
+				}
+			}
+		}
+
+	} else { // client
+		for tun.Error == nil {
+			if msgi, tun.Error = tun.ReadMsg(); tun.Error == nil {
+				if msgi.Type() == CONN {
+					msg := msgi.(*MsgConn)
+					if conn, err := net.Dial("tcp", tun.Addr); err == nil {
+						tun.OpenConn(msg.Id, conn)
+
+					} else {
+						tun.CloseConn(msg.Id, true)
+					}
+
+				} else if msgi.Type() == PACK {
+					msg := msgi.(*MsgPack)
+
+					tun.ConnsMutex.Lock()
+					conn, ok := tun.Conns[msg.Id]
+					tun.ConnsMutex.Unlock()
+					if ok {
+						if _, err := conn.Write(msg.Data); err != nil {
+							tun.CloseConn(msg.Id, true)
+						}
+					} else {
+						tun.CloseConn(msg.Id, true)
+					}
+
+				} else if msgi.Type() == CLOSE {
+					msg := msgi.(*MsgClose)
+					tun.CloseConn(msg.Id, false)
+
+				} else {
+					tun.Error = fmt.Errorf("illegal msg type %v", msgi.Type())
+				}
+			}
+		}
+	}
 }

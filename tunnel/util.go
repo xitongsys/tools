@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
+	"io"
+	"net"
 	"strconv"
 	"strings"
 )
@@ -43,4 +46,34 @@ func Int2Addr(ai uint64) (string, error) {
 	}
 
 	return "", fmt.Errorf("illegal addr: %v", ai)
+}
+
+// read msg from tunnel
+func ReadMsg(conn net.Conn, buffer []uint8) (Msg, error) {
+	if _, err := io.ReadFull(conn, buffer[:5]); err != nil {
+		return nil, err
+	}
+
+	_, ln := MsgType(buffer[0]), binary.LittleEndian.Uint32(buffer[1:5])
+	if ln+5 > uint32(len(buffer)) {
+		return nil, fmt.Errorf("msg too big %v", ln)
+	}
+
+	if _, err := io.ReadFull(conn, buffer[5:5+ln]); err != nil {
+		return nil, err
+	}
+
+	msg, err := deserialize(buffer)
+	return msg, err
+}
+
+// write msg to tunnel
+func WriteMsg(conn net.Conn, buffer []uint8, msg Msg) error {
+	n, err := serialize(msg, buffer)
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Write(buffer[:n])
+	return err
 }
