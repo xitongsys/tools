@@ -131,7 +131,8 @@ func (tun *Tunnel) ConnHandler(conn net.Conn, id uint64) {
 		Id: id,
 	}
 
-	n, err := 0, error(nil)
+	var n int = 0
+	var err error
 	for tun.Error == nil && err == nil {
 		if n, err = conn.Read(buf); n > 0 && err == nil {
 			msg.Data = buf[:n]

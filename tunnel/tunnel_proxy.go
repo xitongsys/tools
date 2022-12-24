@@ -38,6 +38,7 @@ func (tp *TunnelProxy) TunConnHandler(tunConn net.Conn) {
 	buffer := make([]uint8, BUFFER_SIZE)
 	msgi, err := ReadMsg(tunConn, buffer)
 	if err != nil {
+		log.Println(err)
 		return
 	}
 
@@ -70,7 +71,7 @@ func (tp *TunnelProxy) RunClient() {
 		localRole, remoteRole = 'C', 'L'
 
 	} else {
-		log.Fatal("unknown direction %v", tp.Direction)
+		log.Fatalf("unknown direction %v", tp.Direction)
 	}
 
 	msg := &MsgTun{

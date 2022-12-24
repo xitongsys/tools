@@ -39,16 +39,16 @@ func Addr2Int(addr string) (uint64, error) {
 // uint64 -> "127.0.0.1:22"
 func Int2Addr(ai uint64) (string, error) {
 	a, b, c, d := (ai>>(32+24))&0xff, (ai>>(32+16))&0xff, (ai>>(32+8))&0xff, (ai>>(32+0))&0xff
-	port := ai & 0xff
+	port := ai & 0xffffffff
 
 	if port > 0 && port < (1<<16) {
-		return fmt.Sprint("%v.%v.%v.%v:%v", a, b, c, d, port), nil
+		return fmt.Sprintf("%v.%v.%v.%v:%v", a, b, c, d, port), nil
 	}
 
 	return "", fmt.Errorf("illegal addr: %v", ai)
 }
 
-// read msg from tunnel
+// read msg from conn
 func ReadMsg(conn net.Conn, buffer []uint8) (Msg, error) {
 	if _, err := io.ReadFull(conn, buffer[:5]); err != nil {
 		return nil, err
@@ -67,13 +67,12 @@ func ReadMsg(conn net.Conn, buffer []uint8) (Msg, error) {
 	return msg, err
 }
 
-// write msg to tunnel
+// write msg to conn
 func WriteMsg(conn net.Conn, buffer []uint8, msg Msg) error {
 	n, err := serialize(msg, buffer)
 	if err != nil {
 		return err
 	}
-
 	_, err = conn.Write(buffer[:n])
 	return err
 }

@@ -8,7 +8,7 @@ import (
 type MsgType uint8
 
 const (
-	DEFAULT MsgType = 0
+	DEFAULT MsgType = iota
 	TUN
 	CONN
 	CLOSE
@@ -30,7 +30,7 @@ type MsgTun struct {
 }
 
 func (msgtun *MsgTun) Len() uint32 {
-	return 1 + 8 + 8 + 8
+	return 1 + 8 + 8
 }
 
 func (msgtun *MsgTun) Type() MsgType {
@@ -151,7 +151,7 @@ func deserialize(buf []uint8) (Msg, error) {
 	ln = binary.LittleEndian.Uint32(buf[offset:])
 	offset += 4
 
-	if ln+5 < uint32(len(buf)) {
+	if ln+5 > uint32(len(buf)) {
 		goto ERROR
 	}
 
