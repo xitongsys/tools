@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/cipher"
 	"fmt"
 	"net"
 	"sync"
@@ -25,10 +26,12 @@ type Tunnel struct {
 	Conns      map[uint64]net.Conn
 	ConnsMutex sync.Mutex
 
+	CipherBlock cipher.Block
+
 	Error error
 }
 
-func NewTunnel(role uint8, addr string, tunConn net.Conn) *Tunnel {
+func NewTunnel(role uint8, addr string, tunConn net.Conn, cipherBlock cipher.Block) *Tunnel {
 	tun := &Tunnel{
 		Role: role,
 		Addr: addr,
@@ -39,20 +42,22 @@ func NewTunnel(role uint8, addr string, tunConn net.Conn) *Tunnel {
 
 		ConnsCnt: 0,
 		Conns:    map[uint64]net.Conn{},
+
+		CipherBlock: cipherBlock,
 	}
 
 	return tun
 }
 
 func (tun *Tunnel) ReadMsg() (Msg, error) {
-	return ReadMsg(tun.TunConn, tun.InBuffer)
+	return ReadMsg(tun.TunConn, tun.InBuffer, tun.CipherBlock)
 }
 
 func (tun *Tunnel) WriteMsg(msg Msg) error {
 	tun.BufferMutex.Lock()
 	defer tun.BufferMutex.Unlock()
 
-	return WriteMsg(tun.TunConn, tun.OutBuffer, msg)
+	return WriteMsg(tun.TunConn, tun.OutBuffer, msg, tun.CipherBlock)
 }
 
 func (tun *Tunnel) NewId() uint64 {
@@ -135,7 +140,11 @@ func (tun *Tunnel) ConnHandler(conn net.Conn, id uint64) {
 	var err error
 	for tun.Error == nil && err == nil {
 		if n, err = conn.Read(buf); n > 0 && err == nil {
-			msg.Data = buf[:n]
+			msg.DataLen = uint32(n)
+			dataBufferLen := PaddlingLen(msg.DataLen)
+			msg.Data = buf[:dataBufferLen]
+			Paddling(buf[msg.DataLen:dataBufferLen])
+
 			tun.Error = tun.WriteMsg(msg)
 
 		} else if err != nil {
@@ -159,7 +168,7 @@ func (tun *Tunnel) TunHandler() {
 					conn, ok := tun.Conns[msg.Id]
 					tun.ConnsMutex.Unlock()
 					if ok {
-						if _, err := conn.Write(msg.Data); err != nil {
+						if _, err := conn.Write(msg.Data[:msg.DataLen]); err != nil {
 							tun.CloseConn(msg.Id, true)
 						}
 
@@ -196,7 +205,7 @@ func (tun *Tunnel) TunHandler() {
 					conn, ok := tun.Conns[msg.Id]
 					tun.ConnsMutex.Unlock()
 					if ok {
-						if _, err := conn.Write(msg.Data); err != nil {
+						if _, err := conn.Write(msg.Data[:msg.DataLen]); err != nil {
 							tun.CloseConn(msg.Id, true)
 						}
 					} else {

@@ -16,9 +16,7 @@ func main() {
 	parseFlag()
 
 	if Role == "client" { // connect to server
-		tun := &TunnelProxy{}
-		copy(tun.Password[:], []uint8(Password))
-		tun.Addr = Addr
+		tun := NewTunelProxy(Password, Addr)
 
 		if LParas != "" {
 			ss := strings.Split(LParas, ":")
@@ -44,9 +42,7 @@ func main() {
 		tun.RunClient()
 
 	} else { // run as server
-		tun := &TunnelProxy{}
-		copy(tun.Password[:], []uint8(Password))
-		tun.Addr = Addr
+		tun := NewTunelProxy(Password, Addr)
 		tun.RunServer()
 	}
 

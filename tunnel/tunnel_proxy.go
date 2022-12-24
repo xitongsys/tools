@@ -1,20 +1,36 @@
 package main
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"log"
 	"net"
 )
 
 type TunnelProxy struct {
-	Password [8]uint8
-
-	// listener
-	Addr string
+	Password    [16]uint8
+	Addr        string
+	CipherBlock cipher.Block
 
 	// client
 	Direction  string
 	LocalAddr  string
 	RemoteAddr string
+}
+
+func NewTunelProxy(password string, addr string) *TunnelProxy {
+	tp := &TunnelProxy{}
+	for i := 0; i < 16 && i < len(password); i++ {
+		tp.Password[i] = password[i]
+	}
+
+	if len(password) > 0 {
+		tp.CipherBlock, _ = aes.NewCipher(tp.Password[:])
+	}
+
+	tp.Addr = addr
+
+	return tp
 }
 
 func (tp *TunnelProxy) RunServer() {
@@ -36,20 +52,27 @@ func (tp *TunnelProxy) RunServer() {
 
 func (tp *TunnelProxy) TunConnHandler(tunConn net.Conn) {
 	buffer := make([]uint8, BUFFER_SIZE)
-	msgi, err := ReadMsg(tunConn, buffer)
+	msgi, err := ReadMsg(tunConn, buffer, tp.CipherBlock)
 	if err != nil {
+		tunConn.Close()
 		log.Println(err)
 		return
 	}
 
 	if msgi.Type() == TUN {
 		msg := msgi.(*MsgTun)
+
+		if msg.Password != tp.Password {
+			tunConn.Close()
+			return
+		}
+
 		var addr string
 		addr, err = Int2Addr(msg.Addr)
 		if err == nil {
 			log.Println("new tunnel: ", addr)
 
-			tun := NewTunnel(msg.Role, addr, tunConn)
+			tun := NewTunnel(msg.Role, addr, tunConn, tp.CipherBlock)
 			go tun.Run()
 		}
 	}
@@ -80,15 +103,20 @@ func (tp *TunnelProxy) RunClient() {
 		Role:     uint8(remoteRole),
 		Password: tp.Password,
 	}
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	msg.Addr, err = Addr2Int(tp.RemoteAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err = WriteMsg(tunConn, buffer, msg); err != nil {
+	if err = WriteMsg(tunConn, buffer, msg, tp.CipherBlock); err != nil {
 		log.Fatal(err)
 	}
 
-	tun := NewTunnel(uint8(localRole), tp.LocalAddr, tunConn)
+	tun := NewTunnel(uint8(localRole), tp.LocalAddr, tunConn, tp.CipherBlock)
 	tun.Run()
 }

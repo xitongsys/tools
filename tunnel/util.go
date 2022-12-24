@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/cipher"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -49,7 +50,7 @@ func Int2Addr(ai uint64) (string, error) {
 }
 
 // read msg from conn
-func ReadMsg(conn net.Conn, buffer []uint8) (Msg, error) {
+func ReadMsg(conn net.Conn, buffer []uint8, cipherBlock cipher.Block) (Msg, error) {
 	if _, err := io.ReadFull(conn, buffer[:5]); err != nil {
 		return nil, err
 	}
@@ -63,17 +64,46 @@ func ReadMsg(conn net.Conn, buffer []uint8) (Msg, error) {
 		return nil, err
 	}
 
-	msg, err := deserialize(buffer)
+	msg, err := deserialize(buffer, cipherBlock)
 
 	return msg, err
 }
 
 // write msg to conn
-func WriteMsg(conn net.Conn, buffer []uint8, msg Msg) error {
-	n, err := serialize(msg, buffer)
+func WriteMsg(conn net.Conn, buffer []uint8, msg Msg, cipherBlock cipher.Block) error {
+	n, err := serialize(msg, buffer, cipherBlock)
 	if err != nil {
 		return err
 	}
 	_, err = conn.Write(buffer[:n])
 	return err
+}
+
+func PaddlingLen(ln uint32) uint32 {
+	return ((ln + 15) >> 4) << 4
+}
+
+func Paddling(buffer []uint8) {
+	for i := 0; i < len(buffer); i++ {
+		buffer[i] = 0
+	}
+}
+
+func Encrypt(dst []byte, src []byte, block cipher.Block) int {
+	nsrc, nb := len(src), block.BlockSize()
+	for i := 0; i*nb < nsrc; i++ {
+		bgn, end := i*nb, i*nb+nb
+		block.Encrypt(dst[bgn:end], src[bgn:end])
+	}
+	return nsrc
+}
+
+func Decrypt(dst []byte, src []byte, block cipher.Block) int {
+	nsrc, nb := len(src), block.BlockSize()
+	for i := 0; i*nb < nsrc; i++ {
+		bgn, end := i*nb, i*nb+nb
+		block.Decrypt(dst[bgn:end], src[bgn:end])
+	}
+
+	return nsrc
 }

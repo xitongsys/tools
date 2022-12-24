@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/cipher"
 	"encoding/binary"
 	"fmt"
 )
@@ -26,11 +27,11 @@ type Msg interface {
 type MsgTun struct {
 	Role     uint8
 	Addr     uint64
-	Password [8]uint8
+	Password [16]uint8
 }
 
 func (msgtun *MsgTun) Len() uint32 {
-	return 1 + 8 + 8
+	return 1 + 8 + 16
 }
 
 func (msgtun *MsgTun) Type() MsgType {
@@ -71,12 +72,13 @@ func (msgclose *MsgClose) Type() MsgType {
 
 // network package
 type MsgPack struct {
-	Id   uint64
-	Data []byte
+	Id      uint64
+	DataLen uint32
+	Data    []byte
 }
 
 func (msgpack *MsgPack) Len() uint32 {
-	return 8 + uint32(len(msgpack.Data))
+	return 8 + 4 + uint32(len(msgpack.Data))
 }
 
 func (msgpack *MsgPack) Type() MsgType {
@@ -85,7 +87,7 @@ func (msgpack *MsgPack) Type() MsgType {
 
 /////////////////////
 
-func serialize(msgi Msg, buf []uint8) (uint32, error) {
+func serialize(msgi Msg, buf []uint8, cipherBlock cipher.Block) (uint32, error) {
 	offset := 0
 	tp, ln := msgi.Type(), msgi.Len()
 
@@ -109,7 +111,7 @@ func serialize(msgi Msg, buf []uint8) (uint32, error) {
 		offset += 8
 
 		copy(buf[offset:], msg.Password[:])
-		offset += 8
+		offset += len(msg.Password)
 
 	} else if tp == CONN {
 		msg := msgi.(*MsgConn)
@@ -129,15 +131,22 @@ func serialize(msgi Msg, buf []uint8) (uint32, error) {
 		binary.LittleEndian.PutUint64(buf[offset:], msg.Id)
 		offset += 8
 
-		copy(buf[offset:], msg.Data)
-		offset += len(msg.Data)
+		binary.LittleEndian.PutUint32(buf[offset:], msg.DataLen)
+		offset += 4
+
+		if cipherBlock != nil {
+			offset += Encrypt(buf[offset:], msg.Data, cipherBlock)
+
+		} else {
+			offset += copy(buf[offset:], msg.Data)
+		}
 	}
 
 	return uint32(offset), nil
 
 }
 
-func deserialize(buf []uint8) (Msg, error) {
+func deserialize(buf []uint8, cipherBlock cipher.Block) (Msg, error) {
 	ln := uint32(len(buf))
 	tp, offset := DEFAULT, 0
 	msgi := Msg(nil)
@@ -174,7 +183,7 @@ func deserialize(buf []uint8) (Msg, error) {
 			goto ERROR
 		}
 		copy(msg.Password[:], buf[offset:])
-		offset += 8
+		offset += len(msg.Password)
 
 		msgi = msg
 
@@ -209,13 +218,24 @@ func deserialize(buf []uint8) (Msg, error) {
 		msg.Id = binary.LittleEndian.Uint64(buf[offset:])
 		offset += 8
 
+		if offset+4 > len(buf) {
+			goto ERROR
+		}
+		msg.DataLen = binary.LittleEndian.Uint32(buf[offset:])
+		offset += 4
+
 		if offset+int(ln) > len(buf) || int(ln) < 0 {
 			goto ERROR
 		}
-		dataLen := ln - 8
-		msg.Data = make([]byte, dataLen)
-		copy(msg.Data, buf[offset:offset+int(dataLen)])
-		offset += int(dataLen)
+		dataBufferLen := ln + 5 - uint32(offset)
+		msg.Data = make([]byte, dataBufferLen)
+
+		if cipherBlock != nil {
+			offset += Decrypt(msg.Data, buf[offset:offset+int(dataBufferLen)], cipherBlock)
+
+		} else {
+			offset += copy(msg.Data, buf[offset:offset+int(dataBufferLen)])
+		}
 
 		msgi = msg
 	}
