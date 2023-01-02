@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-var Role string
+var AsDaemon bool
 var LParas string
 var RParas string
 var Addr string
@@ -15,7 +15,7 @@ var Password string
 func main() {
 	parseFlag()
 
-	if Role == "client" { // connect to server
+	if !AsDaemon { // connect to server
 		tun := NewTunelProxy(Password, Addr)
 
 		if LParas != "" {
@@ -49,7 +49,7 @@ func main() {
 }
 
 func parseFlag() {
-	flag.StringVar(&Role, "D", "client", "as daemon")
+	flag.BoolVar(&AsDaemon, "D", false, "as daemon")
 	flag.StringVar(&LParas, "L", "", "local listener, remote client")
 	flag.StringVar(&RParas, "R", "", "local client, remote listener")
 	flag.StringVar(&Addr, "H", "127.0.0.1:2333", "ip:port")
