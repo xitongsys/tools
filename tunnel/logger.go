@@ -26,6 +26,6 @@ func InitLog(file io.Writer) {
 func Logger(logLevel LogLevel, fmt string, v ...any) {
 	if logLevel >= CurrentLogLevel {
 		prefix := Prefixs[logLevel]
-		logger.Printf(prefix+fmt, v...)
+		logger.Printf("["+prefix+"]"+fmt, v...)
 	}
 }

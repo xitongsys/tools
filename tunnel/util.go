@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/aes"
 	"crypto/cipher"
 	"encoding/binary"
 	"fmt"
@@ -112,4 +113,14 @@ func Decrypt(dst []byte, src []byte, block cipher.Block) int {
 func UUID() uint64 {
 	id := uint64(rand.Int63())
 	return id
+}
+
+func Password2Cipher(password string) cipher.Block {
+	bs := [16]uint8{}
+	for i := 0; i < len(bs) && i < len(password); i++ {
+		bs[i] = password[i]
+	}
+
+	cipherBlock, _ := aes.NewCipher([]uint8(password))
+	return cipherBlock
 }

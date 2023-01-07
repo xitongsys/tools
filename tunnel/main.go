@@ -10,7 +10,7 @@ var Addr string
 var Password string
 var LogFile string
 
-var tp *TunnelProxy
+var TP *TunnelProxy
 
 func main() {
 	parseFlag()
@@ -27,8 +27,8 @@ func main() {
 		InitLog(file)
 	}
 
-	tp = NewTunelProxy(Addr, Password)
-	go tp.Run()
+	TP = NewTunelProxy(Addr, Password)
+	go TP.Run()
 
 	Cli()
 }

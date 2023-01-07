@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/aes"
 	"crypto/cipher"
 	"fmt"
 	"log"
@@ -21,14 +20,8 @@ type TunnelProxy struct {
 
 func NewTunelProxy(addr string, password string) *TunnelProxy {
 	tp := &TunnelProxy{}
-	for i := 0; i < 16 && i < len(password); i++ {
-		tp.Password[i] = password[i]
-	}
-
-	if len(password) > 0 {
-		tp.CipherBlock, _ = aes.NewCipher(tp.Password[:])
-	}
-
+	copy(tp.Password[:], []uint8(password))
+	tp.CipherBlock = Password2Cipher(password)
 	tp.Addr = addr
 	tp.Tunnels = map[string]*Tunnel{}
 	tp.Tunnels["local"] = nil
@@ -91,6 +84,32 @@ func (tp *TunnelProxy) ConnHandler(tunConn net.Conn) {
 
 		tp.Tunnels[name] = tun
 		go tun.Run()
+	}
+}
+
+func (tp *TunnelProxy) OpenTun(addr string, name string, password string) error {
+	buffer := make([]uint8, BUFFER_SIZE)
+	if conn, err := net.Dial("tcp", addr); err == nil {
+		msg := &MsgTun{}
+		copy(msg.Password[:], password)
+		copy(msg.Name[:], name)
+		cipherBlock := Password2Cipher(password)
+		if err = WriteMsg(conn, buffer, msg, cipherBlock); err == nil {
+			tun := NewTunnel(name, conn, cipherBlock)
+			go tun.Run()
+
+			tp.TunnelsMutex.Lock()
+			tp.Tunnels[name] = tun
+			tp.TunnelsMutex.Unlock()
+
+		} else {
+			return err
+		}
+
+		return nil
+
+	} else {
+		return err
 	}
 }
 
