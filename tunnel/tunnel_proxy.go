@@ -17,7 +17,7 @@ type TunnelProxy struct {
 	TunnelsMutex sync.Mutex
 }
 
-func NewTunelProxy(password string, addr string) *TunnelProxy {
+func NewTunelProxy(addr string, password string) *TunnelProxy {
 	tp := &TunnelProxy{}
 	for i := 0; i < 16 && i < len(password); i++ {
 		tp.Password[i] = password[i]
@@ -33,7 +33,7 @@ func NewTunelProxy(password string, addr string) *TunnelProxy {
 	return tp
 }
 
-func (tp *TunnelProxy) RunServer() {
+func (tp *TunnelProxy) Run() {
 	listen, err := net.Listen("tcp", tp.Addr)
 	if err != nil {
 		log.Fatal(err)
@@ -41,12 +41,12 @@ func (tp *TunnelProxy) RunServer() {
 	defer listen.Close()
 
 	for {
-		tunConn, err := listen.Accept()
+		conn, err := listen.Accept()
 		if err != nil {
 			log.Println(err)
 			continue
 		}
-		go tp.ConnHandler(tunConn)
+		go tp.ConnHandler(conn)
 	}
 }
 
