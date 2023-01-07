@@ -12,41 +12,59 @@ const (
 	BUFFER_SIZE = 4 * 1024
 )
 
-type Tunnel struct {
-	// L: listener, C: client
-	Role uint8
-	Addr string
+type Listen struct {
+	Id          uint64
+	Listener    net.Listener
+	ListenAddr  string
+	ForwardAddr string
+}
 
+type Connection struct {
+	Id   uint64
+	Conn net.Conn
+}
+
+type Tunnel struct {
+	Name        string
 	TunConn     net.Conn
 	InBuffer    []byte
 	OutBuffer   []byte
 	BufferMutex sync.Mutex
 
-	ConnsCnt   uint64
-	Conns      map[uint64]net.Conn
+	Listens      map[uint64]*Listen
+	ListensMutex sync.Mutex
+
+	Conns      map[uint64]*Connection
 	ConnsMutex sync.Mutex
+
+	IdCnt      uint64
+	IdCntMutex sync.Mutex
 
 	CipherBlock cipher.Block
 
 	Error error
 }
 
-func NewTunnel(role uint8, addr string, tunConn net.Conn, cipherBlock cipher.Block) *Tunnel {
+func NewTunnel(name string, tunConn net.Conn, cipherBlock cipher.Block) *Tunnel {
 	tun := &Tunnel{
-		Role: role,
-		Addr: addr,
-
+		Name:      name,
 		TunConn:   tunConn,
 		InBuffer:  make([]byte, BUFFER_SIZE),
 		OutBuffer: make([]byte, BUFFER_SIZE),
 
-		ConnsCnt: 0,
-		Conns:    map[uint64]net.Conn{},
+		Listens: map[uint64]*Listen{},
+		Conns:   map[uint64]*Connection{},
+
+		IdCnt: 0,
 
 		CipherBlock: cipherBlock,
 	}
 
 	return tun
+}
+
+func (tun *Tunnel) Exit(err error) {
+	tun.Error = err
 }
 
 func (tun *Tunnel) ReadMsg() (Msg, error) {
@@ -61,45 +79,63 @@ func (tun *Tunnel) WriteMsg(msg Msg) error {
 }
 
 func (tun *Tunnel) NewId() uint64 {
-	tun.ConnsMutex.Lock()
-	defer tun.ConnsMutex.Unlock()
+	tun.IdCntMutex.Lock()
+	defer tun.IdCntMutex.Unlock()
 
-	tun.ConnsCnt++
-	return tun.ConnsCnt
+	tun.IdCnt++
+	return tun.IdCnt
 }
 
-func (tun *Tunnel) Run() {
-	if tun.Role == 'L' {
-		tun.RunListener()
-	} else {
-		tun.RunClient()
-	}
-}
+// open new listen
+func (tun *Tunnel) OpenListen(id uint64, listenAddr, forwardAddr string) {
+	tun.ListensMutex.Lock()
+	defer tun.ListensMutex.Unlock()
 
-func (tun *Tunnel) RunListener() {
-	go tun.TunHandler()
-
-	listen, err := net.Listen("tcp", tun.Addr)
+	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		return
 	}
-	defer listen.Close()
 
-	msg := &MsgConn{}
-	var conn net.Conn
+	tun.Listens[id] = &Listen{
+		Id:          id,
+		Listener:    listener,
+		ListenAddr:  listenAddr,
+		ForwardAddr: forwardAddr,
+	}
 
-	for tun.Error == nil {
-		if conn, tun.Error = listen.Accept(); tun.Error == nil {
-			msg.Id = tun.NewId()
-			if tun.Error = tun.WriteMsg(msg); tun.Error == nil {
-				tun.OpenConn(msg.Id, conn)
+	forwardAddrInt, err := Addr2Int(forwardAddr)
+	if err != nil {
+		return
+	}
+
+	go func() {
+		for tun.Error == nil {
+			if conn, err := listener.Accept(); err == nil {
+				msg := &MsgConn{
+					Id:   tun.NewId(),
+					Addr: forwardAddrInt,
+				}
+
+				if tun.Error = tun.WriteMsg(msg); tun.Error == nil {
+					tun.OpenConn(msg.Id, conn)
+				}
+
+			} else {
+				break
 			}
 		}
-	}
+	}()
 }
 
-func (tun *Tunnel) RunClient() {
-	tun.TunHandler()
+// close listen
+func (tun *Tunnel) CloseListen(id uint64) {
+	tun.ListensMutex.Lock()
+	defer tun.ListensMutex.Unlock()
+	listen, ok := tun.Listens[id]
+	if ok {
+		listen.Listener.Close()
+		delete(tun.Listens, id)
+	}
 }
 
 // open new connection
@@ -107,7 +143,10 @@ func (tun *Tunnel) OpenConn(id uint64, conn net.Conn) {
 	tun.ConnsMutex.Lock()
 	defer tun.ConnsMutex.Unlock()
 
-	tun.Conns[id] = conn
+	tun.Conns[id] = &Connection{
+		Id:   id,
+		Conn: conn,
+	}
 	go tun.ConnHandler(conn, id)
 }
 
@@ -116,13 +155,13 @@ func (tun *Tunnel) CloseConn(id uint64, notify bool) {
 	tun.ConnsMutex.Lock()
 	conn, ok := tun.Conns[id]
 	if ok {
-		conn.Close()
+		conn.Conn.Close()
 		delete(tun.Conns, id)
 	}
 	tun.ConnsMutex.Unlock()
 
 	if notify {
-		msg := &MsgClose{
+		msg := &MsgCloseConn{
 			Id: id,
 		}
 		tun.Error = tun.WriteMsg(msg)
@@ -154,72 +193,78 @@ func (tun *Tunnel) ConnHandler(conn net.Conn, id uint64) {
 }
 
 // tunnel -> conn
-func (tun *Tunnel) TunHandler() {
+func (tun *Tunnel) Run() {
 	var msgi Msg
 
-	// listener
-	if tun.Role == 'L' {
-		for tun.Error == nil {
-			if msgi, tun.Error = tun.ReadMsg(); tun.Error == nil {
-				if msgi.Type() == PACK {
-					msg := msgi.(*MsgPack)
+	for tun.Error == nil {
+		if msgi, tun.Error = tun.ReadMsg(); tun.Error == nil {
+			if msgi.Type() == PACK {
+				msg := msgi.(*MsgPack)
 
-					tun.ConnsMutex.Lock()
-					conn, ok := tun.Conns[msg.Id]
-					tun.ConnsMutex.Unlock()
-					if ok {
-						if _, err := conn.Write(msg.Data[:msg.DataLen]); err != nil {
-							tun.CloseConn(msg.Id, true)
-						}
-
-					} else {
+				tun.ConnsMutex.Lock()
+				conn, ok := tun.Conns[msg.Id]
+				tun.ConnsMutex.Unlock()
+				if ok {
+					if _, err := conn.Conn.Write(msg.Data[:msg.DataLen]); err != nil {
 						tun.CloseConn(msg.Id, true)
 					}
 
-				} else if msgi.Type() == CLOSE {
-					msg := msgi.(*MsgClose)
-					tun.CloseConn(msg.Id, false)
+				} else {
+					tun.CloseConn(msg.Id, true)
+				}
+
+			} else if msgi.Type() == LISTEN {
+				msg := msgi.(*MsgListen)
+
+				listenAddr, err1 := Int2Addr(msg.ListenAddr)
+				forwardAddr, err2 := Int2Addr(msg.ForwardAddr)
+
+				if err1 == nil && err2 == nil {
+					tun.OpenListen(tun.NewId(), listenAddr, forwardAddr)
+				}
+
+			} else if msgi.Type() == CLOSELISTEN {
+				msg := msgi.(*MsgCloseConn)
+				tun.CloseListen(msg.Id)
+
+			} else if msgi.Type() == CLOSECONN {
+				msg := msgi.(*MsgCloseConn)
+				tun.CloseConn(msg.Id, false)
+
+			} else if msgi.Type() == CONN {
+				msg := msgi.(*MsgConn)
+				addr, err := Int2Addr(msg.Addr)
+
+				if err != nil {
+					tun.CloseConn(msg.Id, true)
 
 				} else {
-					tun.Error = fmt.Errorf("illegal msg type %v", msgi.Type())
-				}
-			}
-		}
-
-	} else { // client
-		for tun.Error == nil {
-			if msgi, tun.Error = tun.ReadMsg(); tun.Error == nil {
-				if msgi.Type() == CONN {
-					msg := msgi.(*MsgConn)
-					if conn, err := net.Dial("tcp", tun.Addr); err == nil {
+					if conn, err := net.Dial("tcp", addr); err == nil {
 						tun.OpenConn(msg.Id, conn)
 
 					} else {
 						tun.CloseConn(msg.Id, true)
 					}
-
-				} else if msgi.Type() == PACK {
-					msg := msgi.(*MsgPack)
-
-					tun.ConnsMutex.Lock()
-					conn, ok := tun.Conns[msg.Id]
-					tun.ConnsMutex.Unlock()
-					if ok {
-						if _, err := conn.Write(msg.Data[:msg.DataLen]); err != nil {
-							tun.CloseConn(msg.Id, true)
-						}
-					} else {
-						tun.CloseConn(msg.Id, true)
-					}
-
-				} else if msgi.Type() == CLOSE {
-					msg := msgi.(*MsgClose)
-					tun.CloseConn(msg.Id, false)
-
-				} else {
-					tun.Error = fmt.Errorf("illegal msg type %v", msgi.Type())
 				}
+
+			} else {
+				tun.Error = fmt.Errorf("illegal msg type %v", msgi.Type())
 			}
 		}
 	}
+
+	//clean before stop
+	tun.ListensMutex.Lock()
+	for id, _ := range tun.Listens {
+		tun.CloseListen(id)
+	}
+	tun.Listens = map[uint64]*Listen{}
+	tun.ListensMutex.Unlock()
+
+	tun.ConnsMutex.Lock()
+	for id, _ := range tun.Conns {
+		tun.CloseConn(id, false)
+	}
+	tun.Conns = map[uint64]*Connection{}
+	tun.ConnsMutex.Unlock()
 }

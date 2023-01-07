@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"strconv"
 	"strings"
@@ -106,4 +107,9 @@ func Decrypt(dst []byte, src []byte, block cipher.Block) int {
 	}
 
 	return nsrc
+}
+
+func UUID() uint64 {
+	id := uint64(rand.Int63())
+	return id
 }

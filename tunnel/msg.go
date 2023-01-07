@@ -11,9 +11,15 @@ type MsgType uint8
 const (
 	DEFAULT MsgType = iota
 	TUN
+
+	LISTEN
+	CLOSELISTEN
+
 	CONN
-	CLOSE
+	CLOSECONN
+
 	PACK
+	CMD
 )
 
 type Msg interface {
@@ -25,13 +31,12 @@ type Msg interface {
 
 // open new tunnel
 type MsgTun struct {
-	Role     uint8
-	Addr     uint64
+	Name     [16]uint8
 	Password [16]uint8
 }
 
 func (msgtun *MsgTun) Len() uint32 {
-	return 1 + 8 + 16
+	return 16 + 16
 }
 
 func (msgtun *MsgTun) Type() MsgType {
@@ -40,13 +45,46 @@ func (msgtun *MsgTun) Type() MsgType {
 
 //////////////////////
 
-// new connection
-type MsgConn struct {
+// new listen
+type MsgListen struct {
+	Id          uint64
+	ListenAddr  uint64
+	ForwardAddr uint64
+}
+
+func (msglisten *MsgListen) Len() uint32 {
+	return 8 + 8 + 8
+}
+
+func (msglisten *MsgListen) Type() MsgType {
+	return LISTEN
+}
+
+/////////////////
+
+// close connection
+type MsgCloseListen struct {
 	Id uint64
 }
 
-func (msgconn *MsgConn) Len() uint32 {
+func (msgcloselisten *MsgCloseListen) Len() uint32 {
 	return 8
+}
+
+func (msgcloselisten *MsgCloseListen) Type() MsgType {
+	return CLOSELISTEN
+}
+
+/////////////
+
+// new connection
+type MsgConn struct {
+	Id   uint64
+	Addr uint64
+}
+
+func (msgconn *MsgConn) Len() uint32 {
+	return 8 + 8
 }
 
 func (msgconn *MsgConn) Type() MsgType {
@@ -56,16 +94,16 @@ func (msgconn *MsgConn) Type() MsgType {
 //////////////////////
 
 // close connection
-type MsgClose struct {
+type MsgCloseConn struct {
 	Id uint64
 }
 
-func (msgclose *MsgClose) Len() uint32 {
+func (msgcloseconn *MsgCloseConn) Len() uint32 {
 	return 8
 }
 
-func (msgclose *MsgClose) Type() MsgType {
-	return CLOSE
+func (msgcloseconn *MsgCloseConn) Type() MsgType {
+	return CLOSECONN
 }
 
 /////////////////////
@@ -104,14 +142,29 @@ func serialize(msgi Msg, buf []uint8, cipherBlock cipher.Block) (uint32, error) 
 	if tp == TUN {
 		msg := msgi.(*MsgTun)
 
-		buf[offset] = msg.Role
-		offset++
-
-		binary.LittleEndian.PutUint64(buf[offset:], msg.Addr)
-		offset += 8
+		copy(buf[offset:], msg.Name[:])
+		offset += len(msg.Name)
 
 		copy(buf[offset:], msg.Password[:])
 		offset += len(msg.Password)
+
+	} else if tp == LISTEN {
+		msg := msgi.(*MsgListen)
+
+		binary.LittleEndian.PutUint64(buf[offset:], msg.Id)
+		offset += 8
+
+		binary.LittleEndian.PutUint64(buf[offset:], msg.ListenAddr)
+		offset += 8
+
+		binary.LittleEndian.PutUint64(buf[offset:], msg.ForwardAddr)
+		offset += 8
+
+	} else if tp == CLOSELISTEN {
+		msg := msgi.(*MsgCloseListen)
+
+		binary.LittleEndian.PutUint64(buf[offset:], msg.Id)
+		offset += 8
 
 	} else if tp == CONN {
 		msg := msgi.(*MsgConn)
@@ -119,8 +172,11 @@ func serialize(msgi Msg, buf []uint8, cipherBlock cipher.Block) (uint32, error) 
 		binary.LittleEndian.PutUint64(buf[offset:], msg.Id)
 		offset += 8
 
-	} else if tp == CLOSE {
-		msg := msgi.(*MsgClose)
+		binary.LittleEndian.PutUint64(buf[offset:], msg.Addr)
+		offset += 8
+
+	} else if tp == CLOSECONN {
+		msg := msgi.(*MsgCloseConn)
 
 		binary.LittleEndian.PutUint64(buf[offset:], msg.Id)
 		offset += 8
@@ -167,23 +223,51 @@ func deserialize(buf []uint8, cipherBlock cipher.Block) (Msg, error) {
 	if tp == TUN {
 		msg := &MsgTun{}
 
-		if offset+1 > len(buf) {
+		if offset+16 > len(buf) {
 			goto ERROR
 		}
-		msg.Role = buf[offset]
-		offset += 1
+		copy(msg.Name[:], buf[offset:])
+		offset += len(msg.Name)
+
+		if offset+16 > len(buf) {
+			goto ERROR
+		}
+		copy(msg.Password[:], buf[offset:])
+		offset += len(msg.Password)
+
+		msgi = msg
+
+	} else if tp == LISTEN {
+		msg := &MsgListen{}
 
 		if offset+8 > len(buf) {
 			goto ERROR
 		}
-		msg.Addr = binary.LittleEndian.Uint64(buf[offset:])
+		msg.Id = binary.LittleEndian.Uint64(buf[offset:])
 		offset += 8
 
 		if offset+8 > len(buf) {
 			goto ERROR
 		}
-		copy(msg.Password[:], buf[offset:])
-		offset += len(msg.Password)
+		msg.ListenAddr = binary.LittleEndian.Uint64(buf[offset:])
+		offset += 8
+
+		if offset+8 > len(buf) {
+			goto ERROR
+		}
+		msg.ForwardAddr = binary.LittleEndian.Uint64(buf[offset:])
+		offset += 8
+
+		msgi = msg
+
+	} else if tp == CLOSELISTEN {
+		msg := &MsgCloseListen{}
+
+		if offset+8 > len(buf) {
+			goto ERROR
+		}
+		msg.Id = binary.LittleEndian.Uint64(buf[offset:])
+		offset += 8
 
 		msgi = msg
 
@@ -196,10 +280,16 @@ func deserialize(buf []uint8, cipherBlock cipher.Block) (Msg, error) {
 		msg.Id = binary.LittleEndian.Uint64(buf[offset:])
 		offset += 8
 
+		if offset+8 > len(buf) {
+			goto ERROR
+		}
+		msg.Addr = binary.LittleEndian.Uint64(buf[offset:])
+		offset += 8
+
 		msgi = msg
 
-	} else if tp == CLOSE {
-		msg := &MsgClose{}
+	} else if tp == CLOSECONN {
+		msg := &MsgCloseConn{}
 
 		if offset+8 > len(buf) {
 			goto ERROR

@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"log"
 	"net"
+	"sync"
 )
 
 type TunnelProxy struct {
@@ -12,10 +13,8 @@ type TunnelProxy struct {
 	Addr        string
 	CipherBlock cipher.Block
 
-	// client
-	Direction  string
-	LocalAddr  string
-	RemoteAddr string
+	Tunnels      map[string]*Tunnel
+	TunnelsMutex sync.Mutex
 }
 
 func NewTunelProxy(password string, addr string) *TunnelProxy {
@@ -29,6 +28,7 @@ func NewTunelProxy(password string, addr string) *TunnelProxy {
 	}
 
 	tp.Addr = addr
+	tp.Tunnels = map[string]*Tunnel{}
 
 	return tp
 }
@@ -46,11 +46,11 @@ func (tp *TunnelProxy) RunServer() {
 			log.Println(err)
 			continue
 		}
-		go tp.TunConnHandler(tunConn)
+		go tp.ConnHandler(tunConn)
 	}
 }
 
-func (tp *TunnelProxy) TunConnHandler(tunConn net.Conn) {
+func (tp *TunnelProxy) ConnHandler(tunConn net.Conn) {
 	buffer := make([]uint8, BUFFER_SIZE)
 	msgi, err := ReadMsg(tunConn, buffer, tp.CipherBlock)
 	if err != nil {
@@ -67,56 +67,22 @@ func (tp *TunnelProxy) TunConnHandler(tunConn net.Conn) {
 			return
 		}
 
-		var addr string
-		addr, err = Int2Addr(msg.Addr)
-		if err == nil {
-			log.Println("new tunnel: ", addr)
+		name := string(msg.Name[:])
 
-			tun := NewTunnel(msg.Role, addr, tunConn, tp.CipherBlock)
-			go tun.Run()
+		tun := NewTunnel(name, tunConn, tp.CipherBlock)
+		log.Printf("new tunnel: %v, %v", name, tunConn.RemoteAddr())
+
+		tp.TunnelsMutex.Lock()
+		defer tp.TunnelsMutex.Unlock()
+
+		if _, ok := tp.Tunnels[name]; ok {
+			tunConn.Close()
+			return
 		}
+
+		tp.Tunnels[name] = tun
+		go tun.Run()
 	}
 }
 
 /////////////////////////////////
-
-func (tp *TunnelProxy) RunClient() {
-	buffer := make([]uint8, BUFFER_SIZE)
-	tunConn, err := net.Dial("tcp", tp.Addr)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer tunConn.Close()
-
-	localRole, remoteRole := 'L', 'C'
-	if tp.Direction == "L" {
-		localRole, remoteRole = 'L', 'C'
-
-	} else if tp.Direction == "R" {
-		localRole, remoteRole = 'C', 'L'
-
-	} else {
-		log.Fatalf("unknown direction %v", tp.Direction)
-	}
-
-	msg := &MsgTun{
-		Role:     uint8(remoteRole),
-		Password: tp.Password,
-	}
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	msg.Addr, err = Addr2Int(tp.RemoteAddr)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if err = WriteMsg(tunConn, buffer, msg, tp.CipherBlock); err != nil {
-		log.Fatal(err)
-	}
-
-	tun := NewTunnel(uint8(localRole), tp.LocalAddr, tunConn, tp.CipherBlock)
-	tun.Run()
-}
