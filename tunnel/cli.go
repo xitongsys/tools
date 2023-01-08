@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const helpString = `
@@ -27,6 +28,9 @@ close tun tun_name
 
 close listen tun_name direction listen_id
 	close listen
+
+exit
+	exit
 `
 
 func checkParasNumber(fields []string, num int) bool {
@@ -39,7 +43,12 @@ func checkParasNumber(fields []string, num int) bool {
 
 func Cli() {
 	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
+	for {
+		if !scanner.Scan() {
+			time.Sleep(3 * time.Second)
+			continue
+		}
+
 		cmdline := scanner.Text()
 		paras := strings.Fields(cmdline)
 		if len(paras) == 0 {
@@ -126,6 +135,9 @@ func Cli() {
 				tunName := paras[1]
 				TP.CloseTun(tunName)
 			}
+
+		} else if cmd == "exit" {
+			os.Exit(0)
 
 		} else {
 			fmt.Printf("unknown cmd: %v\n", cmd)
