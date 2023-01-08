@@ -38,8 +38,10 @@ func (tp *TunnelProxy) Run() {
 
 	// clean job
 	go func() {
-		tp.CleanTun()
-		time.Sleep(10 * time.Second)
+		for {
+			tp.CleanTun()
+			time.Sleep(10 * time.Second)
+		}
 	}()
 
 	///////
