@@ -89,7 +89,7 @@ func (tp *TunnelProxy) ConnHandler(tunConn net.Conn) {
 
 		if _, ok := tp.Tunnels[name]; ok {
 			tunConn.Close()
-			Logger(WARN, "duplicated tun name: %v\n", name)
+			Logger(WARN, "duplicated tun: %v %v\n", name, tun.RemoteAddr)
 			return
 		}
 
@@ -154,6 +154,7 @@ func (tp *TunnelProxy) CleanTun() {
 	for name, tun := range tp.Tunnels {
 		if tun == nil || tun.Error != nil {
 			delete_names = append(delete_names, name)
+			Logger(WARN, "tun closed: %v %v %v", tun.Name, tun.RemoteAddr, tun.Error)
 		}
 	}
 

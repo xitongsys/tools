@@ -285,8 +285,6 @@ func (tun *Tunnel) Run() {
 		tun.CloseConn(id, false)
 	}
 	tun.Conns = map[uint64]*Connection{}
-
-	Logger(WARN, "tun %v stopped: %v\n", tun.Name, tun.Error)
 }
 
 func (tun *Tunnel) String() string {
