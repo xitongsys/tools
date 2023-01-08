@@ -121,7 +121,6 @@ func (tp *TunnelProxy) OpenTun(addr string, name string, password string) error 
 		return nil
 
 	} else {
-		Logger(WARN, "OpenTun error: %v %v %v %v", name, addr, password, err)
 		return err
 	}
 }
@@ -168,8 +167,8 @@ func (tp *TunnelProxy) CleanTun() {
 
 	for _, tun := range tp.RetryTunnels {
 		if tun.Error != nil {
-			tp.OpenTun(tun.RemoteAddr, tun.Name, tun.Password)
-			Logger(WARN, "retry tun %v %v", tun.Name, tun.RemoteAddr)
+			err := tp.OpenTun(tun.RemoteAddr, tun.Name, tun.Password)
+			Logger(WARN, "retry tun %v %v %v", tun.Name, tun.RemoteAddr, err)
 		}
 	}
 }
