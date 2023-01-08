@@ -23,7 +23,7 @@ func InitLog(file io.Writer) {
 	logger = log.New(file, "", log.Ldate|log.Ltime|log.Lshortfile)
 }
 
-func Logger(logLevel LogLevel, fmt string, v ...any) {
+func Logger(logLevel LogLevel, fmt string, v ...interface{}) {
 	if logLevel >= CurrentLogLevel {
 		prefix := Prefixs[logLevel]
 		logger.Printf("["+prefix+"] "+fmt, v...)
