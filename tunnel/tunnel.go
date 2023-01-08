@@ -72,6 +72,7 @@ func NewTunnel(name string, tunConn net.Conn, cipherBlock cipher.Block) *Tunnel 
 }
 
 func (tun *Tunnel) Exit(err error) {
+	tun.TunConn.Close()
 	tun.Error = err
 }
 

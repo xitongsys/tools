@@ -130,6 +130,7 @@ func (tp *TunnelProxy) CloseTun(name string) {
 
 	if tun, ok := tp.Tunnels[name]; ok {
 		tun.Exit(fmt.Errorf("close"))
+		delete(tp.Tunnels, name)
 	}
 }
 
