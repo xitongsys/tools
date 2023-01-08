@@ -102,7 +102,7 @@ func Cli() {
 			}
 
 		} else if cmd == "close" && checkParasNumber(paras, 1) {
-			if paras[0] == "tun" && checkParasNumber(paras, 1+3) {
+			if paras[0] == "listen" && checkParasNumber(paras, 1+3) {
 				tunName, direction, idStr := paras[1], paras[2], paras[3]
 				id, _ := strconv.ParseUint(idStr, 10, 64)
 
@@ -122,10 +122,9 @@ func Cli() {
 					}
 				}
 
-			} else if paras[0] == "listen" && checkParasNumber(paras, 1+1) {
+			} else if paras[0] == "tun" && checkParasNumber(paras, 1+1) {
 				tunName := paras[1]
 				TP.CloseTun(tunName)
-
 			}
 
 		} else {

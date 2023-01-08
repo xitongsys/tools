@@ -73,7 +73,7 @@ func (tp *TunnelProxy) ConnHandler(tunConn net.Conn) {
 		}
 
 		name := ByteArrayToString(msg.Name[:])
-		tun := NewTunnel(name, tunConn, tp.CipherBlock)
+		tun := NewTunnel(name, tunConn.RemoteAddr().String(), tunConn, tp.CipherBlock)
 		Logger(INFO, "new tunnel: %v, %v\n", name, tunConn.RemoteAddr())
 
 		tp.TunnelsMutex.Lock()
@@ -98,7 +98,7 @@ func (tp *TunnelProxy) OpenTun(addr string, name string, password string) error 
 		copy(msg.Name[:], name)
 		cipherBlock := Password2Cipher(password)
 		if err = WriteMsg(conn, buffer, msg, cipherBlock); err == nil {
-			tun := NewTunnel(name, conn, cipherBlock)
+			tun := NewTunnel(name, addr, conn, cipherBlock)
 			go tun.Run()
 
 			tp.TunnelsMutex.Lock()

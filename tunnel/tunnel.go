@@ -34,6 +34,7 @@ func (conn *Connection) String() string {
 
 type Tunnel struct {
 	Name        string
+	RemoteAddr  string
 	TunConn     net.Conn
 	InBuffer    []byte
 	OutBuffer   []byte
@@ -53,12 +54,13 @@ type Tunnel struct {
 	Error error
 }
 
-func NewTunnel(name string, tunConn net.Conn, cipherBlock cipher.Block) *Tunnel {
+func NewTunnel(name string, remoteAddr string, tunConn net.Conn, cipherBlock cipher.Block) *Tunnel {
 	tun := &Tunnel{
-		Name:      name,
-		TunConn:   tunConn,
-		InBuffer:  make([]byte, BUFFER_SIZE),
-		OutBuffer: make([]byte, BUFFER_SIZE),
+		Name:       name,
+		RemoteAddr: remoteAddr,
+		TunConn:    tunConn,
+		InBuffer:   make([]byte, BUFFER_SIZE),
+		OutBuffer:  make([]byte, BUFFER_SIZE),
 
 		Listens: map[uint64]*Listen{},
 		Conns:   map[uint64]*Connection{},
@@ -284,5 +286,5 @@ func (tun *Tunnel) String() string {
 	defer tun.ListensMutex.Unlock()
 	defer tun.ConnsMutex.Unlock()
 
-	return fmt.Sprintf("{Name:%v, Listens:%v, Conns:%v, Error:%v}", tun.Name, tun.Listens, tun.Conns, tun.Error)
+	return fmt.Sprintf("{Name:%v, RemoteAddr:%v, Listens:%v, Conns:%v, Error:%v}", tun.Name, tun.RemoteAddr, tun.Listens, tun.Conns, tun.Error)
 }
