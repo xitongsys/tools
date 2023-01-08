@@ -154,7 +154,9 @@ func (tp *TunnelProxy) CleanTun() {
 	for name, tun := range tp.Tunnels {
 		if tun == nil || tun.Error != nil {
 			delete_names = append(delete_names, name)
-			Logger(WARN, "tun closed: %v %v %v", tun.Name, tun.RemoteAddr, tun.Error)
+			if tun != nil {
+				Logger(WARN, "tun closed: %v %v %v", tun.Name, tun.RemoteAddr, tun.Error)
+			}
 		}
 	}
 
