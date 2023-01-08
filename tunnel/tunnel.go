@@ -33,8 +33,10 @@ func (conn *Connection) String() string {
 }
 
 type Tunnel struct {
-	Name        string
-	RemoteAddr  string
+	Name       string
+	RemoteAddr string
+	Password   string
+
 	TunConn     net.Conn
 	InBuffer    []byte
 	OutBuffer   []byte
@@ -54,10 +56,11 @@ type Tunnel struct {
 	Error error
 }
 
-func NewTunnel(name string, remoteAddr string, tunConn net.Conn, cipherBlock cipher.Block) *Tunnel {
+func NewTunnel(name string, remoteAddr string, password string, tunConn net.Conn) *Tunnel {
 	tun := &Tunnel{
 		Name:       name,
 		RemoteAddr: remoteAddr,
+		Password:   password,
 		TunConn:    tunConn,
 		InBuffer:   make([]byte, BUFFER_SIZE),
 		OutBuffer:  make([]byte, BUFFER_SIZE),
@@ -67,7 +70,7 @@ func NewTunnel(name string, remoteAddr string, tunConn net.Conn, cipherBlock cip
 
 		IdCnt: 0,
 
-		CipherBlock: cipherBlock,
+		CipherBlock: Password2Cipher(password),
 	}
 
 	return tun

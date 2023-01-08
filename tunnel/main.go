@@ -28,15 +28,15 @@ func main() {
 	}
 
 	TP = NewTunelProxy(Addr, Password)
-	go TP.Run()
+	TP.Run()
 
 	Cli()
 }
 
 func parseFlag() {
-	flag.StringVar(&LogFile, "log", "", "")
-	flag.StringVar(&Addr, "addr", "0.0.0.0:23", "")
-	flag.StringVar(&Password, "pwd", "12345", "")
+	flag.StringVar(&LogFile, "L", "", "")
+	flag.StringVar(&Addr, "D", "", "")
+	flag.StringVar(&Password, "P", "12345", "")
 
 	flag.Parse()
 }

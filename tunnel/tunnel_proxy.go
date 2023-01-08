@@ -14,7 +14,9 @@ type TunnelProxy struct {
 	Addr        string
 	CipherBlock cipher.Block
 
-	Tunnels      map[string]*Tunnel
+	Tunnels map[string]*Tunnel
+	// tun created by self should be keep retrying if error happened
+	RetryTunnels map[string]*Tunnel
 	TunnelsMutex sync.Mutex
 }
 
@@ -24,17 +26,32 @@ func NewTunelProxy(addr string, password string) *TunnelProxy {
 	tp.CipherBlock = Password2Cipher(password)
 	tp.Addr = addr
 	tp.Tunnels = map[string]*Tunnel{}
+	tp.RetryTunnels = map[string]*Tunnel{}
 	tp.Tunnels["local"] = nil
 
 	return tp
 }
 
 func (tp *TunnelProxy) Run() {
-	listen, err := net.Listen("tcp", tp.Addr)
-	if err != nil {
-		log.Fatal(err)
+	// start server
+	if tp.Addr != "" {
+		go func() {
+			listen, err := net.Listen("tcp", tp.Addr)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer listen.Close()
+
+			for {
+				conn, err := listen.Accept()
+				if err != nil {
+					Logger(ERRO, "accept error: %v\n", err)
+					continue
+				}
+				go tp.ConnHandler(conn)
+			}
+		}()
 	}
-	defer listen.Close()
 
 	// clean job
 	go func() {
@@ -43,16 +60,6 @@ func (tp *TunnelProxy) Run() {
 			time.Sleep(10 * time.Second)
 		}
 	}()
-
-	///////
-	for {
-		conn, err := listen.Accept()
-		if err != nil {
-			Logger(ERRO, "accept error: %v\n", err)
-			continue
-		}
-		go tp.ConnHandler(conn)
-	}
 }
 
 func (tp *TunnelProxy) ConnHandler(tunConn net.Conn) {
@@ -73,7 +80,8 @@ func (tp *TunnelProxy) ConnHandler(tunConn net.Conn) {
 		}
 
 		name := ByteArrayToString(msg.Name[:])
-		tun := NewTunnel(name, tunConn.RemoteAddr().String(), tunConn, tp.CipherBlock)
+		password := ByteArrayToString(msg.Password[:])
+		tun := NewTunnel(name, tunConn.RemoteAddr().String(), password, tunConn)
 		Logger(INFO, "new tunnel: %v, %v\n", name, tunConn.RemoteAddr())
 
 		tp.TunnelsMutex.Lock()
@@ -98,11 +106,12 @@ func (tp *TunnelProxy) OpenTun(addr string, name string, password string) error 
 		copy(msg.Name[:], name)
 		cipherBlock := Password2Cipher(password)
 		if err = WriteMsg(conn, buffer, msg, cipherBlock); err == nil {
-			tun := NewTunnel(name, addr, conn, cipherBlock)
+			tun := NewTunnel(name, addr, password, conn)
 			go tun.Run()
 
 			tp.TunnelsMutex.Lock()
 			tp.Tunnels[name] = tun
+			tp.RetryTunnels[name] = tun
 			tp.TunnelsMutex.Unlock()
 
 		} else {
@@ -134,22 +143,30 @@ func (tp *TunnelProxy) CloseTun(name string) {
 		tun.Exit(fmt.Errorf("close"))
 		delete(tp.Tunnels, name)
 	}
+
+	delete(tp.RetryTunnels, name)
 }
 
 func (tp *TunnelProxy) CleanTun() {
+	delete_names := []string{}
+
 	tp.TunnelsMutex.Lock()
-	defer tp.TunnelsMutex.Unlock()
-
-	names := []string{}
-
 	for name, tun := range tp.Tunnels {
 		if tun == nil || tun.Error != nil {
-			names = append(names, name)
+			delete_names = append(delete_names, name)
 		}
 	}
 
-	for _, name := range names {
+	for _, name := range delete_names {
 		delete(tp.Tunnels, name)
+	}
+	tp.TunnelsMutex.Unlock()
+
+	for _, tun := range tp.RetryTunnels {
+		if tun.Error != nil {
+			tp.OpenTun(tun.RemoteAddr, tun.Name, tun.Password)
+			Logger(WARN, "retry tun %v %v", tun.Name, tun.RemoteAddr)
+		}
 	}
 }
 
@@ -162,11 +179,17 @@ func (tp *TunnelProxy) String() string {
 		tuns = append(tuns, name)
 	}
 
+	retryTuns := []string{}
+	for name, _ := range tp.RetryTunnels {
+		retryTuns = append(retryTuns, name)
+	}
+
 	res := fmt.Sprintf(`{
 		Addr: %v,
 		Password: %v,
-		Tuns: %v,	
-	}`, tp.Addr, string(tp.Password[:]), tuns)
+		Tunnels: %v,	
+		RetryTunnels: %v,
+	}`, tp.Addr, string(tp.Password[:]), tuns, retryTuns)
 
 	return res
 }
