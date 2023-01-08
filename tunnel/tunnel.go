@@ -175,7 +175,9 @@ func (tun *Tunnel) CloseConn(id uint64, notify bool) {
 		msg := &MsgCloseConn{
 			Id: id,
 		}
-		tun.Error = tun.WriteMsg(msg)
+		if err := tun.WriteMsg(msg); err != nil {
+			tun.Error = err
+		}
 	}
 }
 
@@ -195,7 +197,9 @@ func (tun *Tunnel) ConnHandler(conn net.Conn, id uint64) {
 			msg.Data = buf[:dataBufferLen]
 			Paddling(buf[msg.DataLen:dataBufferLen])
 
-			tun.Error = tun.WriteMsg(msg)
+			if err := tun.WriteMsg(msg); err != nil {
+				tun.Error = err
+			}
 
 		} else if err != nil {
 			tun.CloseConn(id, true)
@@ -206,9 +210,10 @@ func (tun *Tunnel) ConnHandler(conn net.Conn, id uint64) {
 // tunnel -> conn
 func (tun *Tunnel) Run() {
 	var msgi Msg
+	var err error
 
 	for tun.Error == nil {
-		if msgi, tun.Error = tun.ReadMsg(); tun.Error == nil {
+		if msgi, err = tun.ReadMsg(); err == nil {
 			if msgi.Type() == PACK {
 				msg := msgi.(*MsgPack)
 
@@ -261,23 +266,24 @@ func (tun *Tunnel) Run() {
 			} else {
 				tun.Error = fmt.Errorf("illegal msg type %v", msgi.Type())
 			}
+
+		} else {
+			tun.Error = err
 		}
 	}
 
 	//clean before stop
-	tun.ListensMutex.Lock()
 	for id, _ := range tun.Listens {
 		tun.CloseListen(id)
 	}
 	tun.Listens = map[uint64]*Listen{}
-	tun.ListensMutex.Unlock()
 
-	tun.ConnsMutex.Lock()
 	for id, _ := range tun.Conns {
 		tun.CloseConn(id, false)
 	}
 	tun.Conns = map[uint64]*Connection{}
-	tun.ConnsMutex.Unlock()
+
+	Logger(WARN, "tun %v stopped: %v\n", tun.Name, tun.Error)
 }
 
 func (tun *Tunnel) String() string {
