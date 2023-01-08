@@ -8,8 +8,18 @@ func Cli() {
 		var cmd string
 		fmt.Scan(&cmd)
 
-		if cmd == "info" {
-			fmt.Println(TP.ToString())
+		if cmd == "ls" {
+			fmt.Println(TP.String())
+
+		} else if cmd == "lstun" {
+			var name string
+			fmt.Scan(&name)
+			tun := TP.GetTun(name)
+			if tun != nil {
+				fmt.Printf("%v\n", tun)
+			} else {
+				fmt.Printf("tun %v not found\n", name)
+			}
 
 		} else if cmd == "opentun" {
 			var name, addr, password string
@@ -74,6 +84,9 @@ func Cli() {
 			var tunName string
 			fmt.Scan(&tunName)
 			TP.CloseTun(tunName)
+
+		} else {
+			fmt.Printf("unknown cmd: %v\n", cmd)
 		}
 	}
 }

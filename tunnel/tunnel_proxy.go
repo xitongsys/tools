@@ -70,7 +70,7 @@ func (tp *TunnelProxy) ConnHandler(tunConn net.Conn) {
 			return
 		}
 
-		name := string(msg.Name[:])
+		name := ByteArrayToString(msg.Name[:])
 		tun := NewTunnel(name, tunConn, tp.CipherBlock)
 		Logger(INFO, "new tunnel: %v, %v\n", name, tunConn.RemoteAddr())
 
@@ -79,6 +79,7 @@ func (tp *TunnelProxy) ConnHandler(tunConn net.Conn) {
 
 		if _, ok := tp.Tunnels[name]; ok {
 			tunConn.Close()
+			Logger(WARN, "duplicated tun name: %v\n", name)
 			return
 		}
 
@@ -149,7 +150,7 @@ func (tp *TunnelProxy) CleanTun() {
 	}
 }
 
-func (tp *TunnelProxy) ToString() string {
+func (tp *TunnelProxy) String() string {
 	tp.TunnelsMutex.Lock()
 	defer tp.TunnelsMutex.Unlock()
 

@@ -124,3 +124,14 @@ func Password2Cipher(password string) cipher.Block {
 	cipherBlock, _ := aes.NewCipher([]uint8(password))
 	return cipherBlock
 }
+
+// '\0' as string end
+func StringByteLen(bs []uint8) (l int) {
+	for l = 0; l < len(bs) && bs[l] != 0; l++ {
+	}
+	return
+}
+
+func ByteArrayToString(bs []uint8) string {
+	return string(bs[:StringByteLen(bs)])
+}

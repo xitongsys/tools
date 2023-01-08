@@ -19,9 +19,17 @@ type Listen struct {
 	ForwardAddr string
 }
 
+func (listen *Listen) String() string {
+	return fmt.Sprintf("{Id:%v, ListenAddr:%v, ForwardAddr:%v}", listen.Id, listen.ListenAddr, listen.ForwardAddr)
+}
+
 type Connection struct {
 	Id   uint64
 	Conn net.Conn
+}
+
+func (conn *Connection) String() string {
+	return fmt.Sprintf("{Id:%v, RemoteAddr:%v}", conn.Id, conn.Conn.RemoteAddr().String())
 }
 
 type Tunnel struct {
@@ -267,4 +275,13 @@ func (tun *Tunnel) Run() {
 	}
 	tun.Conns = map[uint64]*Connection{}
 	tun.ConnsMutex.Unlock()
+}
+
+func (tun *Tunnel) String() string {
+	tun.ListensMutex.Lock()
+	tun.ConnsMutex.Lock()
+	defer tun.ListensMutex.Unlock()
+	defer tun.ConnsMutex.Unlock()
+
+	return fmt.Sprintf("{Name:%v, Listens:%v, Conns:%v, Error:%v}", tun.Name, tun.Listens, tun.Conns, tun.Error)
 }
