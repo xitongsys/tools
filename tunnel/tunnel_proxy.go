@@ -121,6 +121,7 @@ func (tp *TunnelProxy) OpenTun(addr string, name string, password string) error 
 		return nil
 
 	} else {
+		Logger(WARN, "OpenTun error: %v %v %v %v", name, addr, password, err)
 		return err
 	}
 }
