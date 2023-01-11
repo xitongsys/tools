@@ -101,13 +101,13 @@ func (tun *Tunnel) NewId() uint64 {
 }
 
 // open new listen
-func (tun *Tunnel) OpenListen(id uint64, listenAddr, forwardAddr string) {
+func (tun *Tunnel) OpenListen(id uint64, listenAddr, forwardAddr string) error {
 	tun.ListensMutex.Lock()
 	defer tun.ListensMutex.Unlock()
 
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
-		return
+		return err
 	}
 
 	tun.Listens[id] = &Listen{
@@ -119,7 +119,7 @@ func (tun *Tunnel) OpenListen(id uint64, listenAddr, forwardAddr string) {
 
 	forwardAddrInt, err := Addr2Int(forwardAddr)
 	if err != nil {
-		return
+		return err
 	}
 
 	go func() {
@@ -139,6 +139,8 @@ func (tun *Tunnel) OpenListen(id uint64, listenAddr, forwardAddr string) {
 			}
 		}
 	}()
+
+	return nil
 }
 
 // close listen
