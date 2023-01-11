@@ -175,13 +175,14 @@ func (tp *TunnelProxy) CleanTun() {
 
 	for _, tun := range tp.RetryTunnels {
 		if tun.Error != nil {
-			err := tp.OpenTun(tun.RemoteAddr, tun.Name, tun.Password)
-			Logger(WARN, "retry tun %v %v %v", tun.Name, tun.RemoteAddr, err)
-
 			tun.CloseListens()
 			tun.ClearConns()
 
+			err := tp.OpenTun(tun.RemoteAddr, tun.Name, tun.Password)
+			Logger(WARN, "retry tun %v %v %v", tun.Name, tun.RemoteAddr, err)
+
 			if err == nil {
+				tun = tp.GetTun(tun.Name)
 				for _, listen := range tun.Listens {
 					err = tun.OpenListen(listen.Id, listen.ListenAddr, listen.ForwardAddr)
 					Logger(WARN, "retry listen %v %v %v %v", listen.Id, listen.ListenAddr, listen.ForwardAddr, err)
