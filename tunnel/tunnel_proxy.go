@@ -163,6 +163,7 @@ func (tp *TunnelProxy) CleanTun() {
 	for _, name := range delete_names {
 		tun := tp.Tunnels[name]
 		if tun != nil {
+			//clear only non-retry tuns. retry tuns should keep these msg for retry
 			if _, ok := tp.RetryTunnels[name]; !ok {
 				tun.ClearListens()
 				tun.ClearConns()
