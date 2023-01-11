@@ -169,6 +169,12 @@ func (tp *TunnelProxy) CleanTun() {
 		if tun.Error != nil {
 			err := tp.OpenTun(tun.RemoteAddr, tun.Name, tun.Password)
 			Logger(WARN, "retry tun %v %v %v", tun.Name, tun.RemoteAddr, err)
+
+			if err == nil {
+				for _, listen := range tun.Listens {
+					tun.OpenListen(listen.Id, listen.ListenAddr, listen.ForwardAddr)
+				}
+			}
 		}
 	}
 }
