@@ -173,6 +173,7 @@ func (tp *TunnelProxy) CleanTun() {
 			if err == nil {
 				for _, listen := range tun.Listens {
 					tun.OpenListen(listen.Id, listen.ListenAddr, listen.ForwardAddr)
+					Logger(WARN, "retry listen %v %v %v", listen.Id, listen.ListenAddr, listen.ForwardAddr)
 				}
 			}
 		}
