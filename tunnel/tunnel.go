@@ -145,19 +145,13 @@ func (tun *Tunnel) OpenListen(id uint64, listenAddr, forwardAddr string) {
 func (tun *Tunnel) CloseListen(id uint64) {
 	tun.ListensMutex.Lock()
 	defer tun.ListensMutex.Unlock()
-	listen, ok := tun.Listens[id]
-	if ok {
-		listen.Listener.Close()
-		delete(tun.Listens, id)
-	}
+	tun.closeListen(id)
 }
 
 // close listen without lock
 func (tun *Tunnel) closeListen(id uint64) {
-	listen, ok := tun.Listens[id]
-	if ok {
+	if listen, ok := tun.Listens[id]; ok {
 		listen.Listener.Close()
-		delete(tun.Listens, id)
 	}
 }
 
@@ -194,21 +188,8 @@ func (tun *Tunnel) closeConn(id uint64, notify bool) {
 // close connection
 func (tun *Tunnel) CloseConn(id uint64, notify bool) {
 	tun.ConnsMutex.Lock()
-	conn, ok := tun.Conns[id]
-	if ok {
-		conn.Conn.Close()
-		delete(tun.Conns, id)
-	}
-	tun.ConnsMutex.Unlock()
-
-	if notify {
-		msg := &MsgCloseConn{
-			Id: id,
-		}
-		if err := tun.WriteMsg(msg); err != nil {
-			tun.Error = err
-		}
-	}
+	defer tun.ConnsMutex.Unlock()
+	tun.closeConn(id, notify)
 }
 
 // conn -> tunnel
@@ -303,7 +284,7 @@ func (tun *Tunnel) Run() {
 	}
 }
 
-func (tun *Tunnel) CleanListens() {
+func (tun *Tunnel) CloseListens() {
 	tun.ListensMutex.Lock()
 	defer tun.ListensMutex.Unlock()
 	for id, _ := range tun.Listens {
@@ -311,12 +292,32 @@ func (tun *Tunnel) CleanListens() {
 	}
 }
 
-func (tun *Tunnel) CleanConns() {
+func (tun *Tunnel) CloseConns() {
 	tun.ConnsMutex.Lock()
 	defer tun.ConnsMutex.Unlock()
 	for id, _ := range tun.Conns {
 		tun.closeConn(id, false)
 	}
+}
+
+func (tun *Tunnel) ClearListens() {
+	tun.ListensMutex.Lock()
+	defer tun.ListensMutex.Unlock()
+
+	for id, _ := range tun.Listens {
+		tun.closeListen(id)
+	}
+	tun.Listens = map[uint64]*Listen{}
+}
+
+func (tun *Tunnel) ClearConns() {
+	tun.ConnsMutex.Lock()
+	defer tun.ConnsMutex.Unlock()
+
+	for id, _ := range tun.Conns {
+		tun.closeConn(id, false)
+	}
+	tun.Conns = map[uint64]*Connection{}
 }
 
 func (tun *Tunnel) String() string {

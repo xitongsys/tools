@@ -165,8 +165,8 @@ func (tp *TunnelProxy) CleanTun() {
 	for _, name := range delete_names {
 		tun := tp.Tunnels[name]
 		if tun != nil {
-			tun.CleanConns()
-			tun.CleanListens()
+			tun.ClearConns()
+			tun.ClearListens()
 			Logger(WARN, "clean tun %v", name)
 		}
 		delete(tp.Tunnels, name)
@@ -177,6 +177,9 @@ func (tp *TunnelProxy) CleanTun() {
 		if tun.Error != nil {
 			err := tp.OpenTun(tun.RemoteAddr, tun.Name, tun.Password)
 			Logger(WARN, "retry tun %v %v %v", tun.Name, tun.RemoteAddr, err)
+
+			tun.CloseListens()
+			tun.CloseConns()
 
 			if err == nil {
 				for _, listen := range tun.Listens {
