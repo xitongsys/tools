@@ -165,6 +165,7 @@ func (tp *TunnelProxy) CleanTun() {
 		if tun != nil {
 			tun.CleanConns()
 			tun.CleanListens()
+			Logger(WARN, "clean tun %v", name)
 		}
 		delete(tp.Tunnels, name)
 	}
