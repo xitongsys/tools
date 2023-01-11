@@ -57,7 +57,7 @@ func (tp *TunnelProxy) Run() {
 	go func() {
 		for {
 			tp.CleanTun()
-			time.Sleep(10 * time.Second)
+			time.Sleep(3 * time.Second)
 		}
 	}()
 }
@@ -161,6 +161,8 @@ func (tp *TunnelProxy) CleanTun() {
 	}
 
 	for _, name := range delete_names {
+		tp.Tunnels[name].CleanConns()
+		tp.Tunnels[name].CleanListens()
 		delete(tp.Tunnels, name)
 	}
 	tp.TunnelsMutex.Unlock()

@@ -274,17 +274,24 @@ func (tun *Tunnel) Run() {
 			tun.Error = err
 		}
 	}
+}
 
-	//clean before stop
+func (tun *Tunnel) CleanListens() {
+	tun.ListensMutex.Lock()
 	for id, _ := range tun.Listens {
 		tun.CloseListen(id)
 	}
 	tun.Listens = map[uint64]*Listen{}
+	tun.ListensMutex.Unlock()
+}
 
+func (tun *Tunnel) CleanConns() {
+	tun.ConnsMutex.Lock()
 	for id, _ := range tun.Conns {
 		tun.CloseConn(id, false)
 	}
 	tun.Conns = map[uint64]*Connection{}
+	tun.ConnsMutex.Unlock()
 }
 
 func (tun *Tunnel) String() string {
