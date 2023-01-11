@@ -161,8 +161,11 @@ func (tp *TunnelProxy) CleanTun() {
 	}
 
 	for _, name := range delete_names {
-		tp.Tunnels[name].CleanConns()
-		tp.Tunnels[name].CleanListens()
+		tun := tp.Tunnels[name]
+		if tun != nil {
+			tun.CleanConns()
+			tun.CleanListens()
+		}
 		delete(tp.Tunnels, name)
 	}
 	tp.TunnelsMutex.Unlock()
