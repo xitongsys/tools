@@ -34,9 +34,9 @@ func main() {
 }
 
 func parseFlag() {
-	flag.StringVar(&LogFile, "L", "", "")
-	flag.StringVar(&Addr, "D", "", "")
-	flag.StringVar(&Password, "P", "12345", "")
+	flag.StringVar(&LogFile, "L", "", "log file, default is stdout/stderr")
+	flag.StringVar(&Addr, "D", "", "run as daemon with address")
+	flag.StringVar(&Password, "P", "12345", "password")
 
 	flag.Parse()
 }
