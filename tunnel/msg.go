@@ -328,6 +328,9 @@ func deserialize(buf []uint8, cipherBlock cipher.Block) (Msg, error) {
 		}
 
 		msgi = msg
+
+	} else {
+		goto ERROR
 	}
 
 	return msgi, nil
