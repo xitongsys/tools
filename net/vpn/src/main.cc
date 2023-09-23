@@ -6,7 +6,7 @@
 
 int main()
 {
-    std::cout << sizeof(net_stack::tcp_header_t) << std::endl;
+    std::cout << sizeof(net_stack::tcp::tcp_header_t) << std::endl;
 
     dev::tun_t t;
     std::cout << t.tun_open("/dev/net/tun", "tun0") << std::endl;
@@ -16,7 +16,7 @@ int main()
 
     for (;;)
     {
-        net_stack::ip_header_t *ip_header = (net_stack::ip_header_t *)buffer;
+        net_stack::ip::ip_header_t *ip_header = (net_stack::ip::ip_header_t *)buffer;
         int cnt = t.tun_read(buffer, BS);
 
         std::cout << cnt << " " << (int)ip_header->ver << " " << (int)ip_header->protocol << std::endl;

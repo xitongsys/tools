@@ -34,29 +34,31 @@ namespace agent
         size_t size = 0;
         std::tie(buffer, size) = tun_buffer.read_buffer();
 
-        if (size <= sizeof(net_stack::ip_header_t))
+        if (size <= sizeof(net_stack::ip::ip_header_t))
         {
             return 0;
         }
 
-        net_stack::ip_header_t *ip_header = (net_stack::ip_header_t *)buffer;
+        net_stack::ip::ip_header_t *ip_header = (net_stack::ip::ip_header_t *)buffer;
+        if (size < ip_header->total_length)
+        {
+            return 0;
+        }
 
         if (ip_header->ver == 4) // ipv4
         {
-            if (ip_header->protocol == net_stack::ICMP) // icmp
+            if (ip_header->protocol == net_stack::ip::ICMP) // icmp
             {
             }
-            else if (ip_header->protocol == net_stack::TCP) // tcp
+            else if (ip_header->protocol == net_stack::ip::TCP) // tcp
             {
-                
             }
-            else if (ip_header->protocol == net_stack::UDP) // udp
+            else if (ip_header->protocol == net_stack::ip::UDP) // udp
             {
             }
             else
             {
             }
-
         }
         else if (ip_header->ver == 6) // ipv6
         {
