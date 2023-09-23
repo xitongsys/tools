@@ -44,7 +44,7 @@ namespace agent
             return 0;
         }
 
-        int ip_header_len = (ip_header->ihl) << 5;
+        int ip_header_len = (ip_header->ihl) << 2;
 
         if (ip_header->ver == 4) // ipv4
         {
@@ -53,6 +53,8 @@ namespace agent
             }
             else if (ip_header->protocol == net_stack::ip::TCP) // tcp
             {
+                net_stack::tcp::tcp_header_t *tcp_header = (net_stack::tcp::tcp_header_t *)(buffer + ip_header_len);
+
             }
             else if (ip_header->protocol == net_stack::ip::UDP) // udp
             {

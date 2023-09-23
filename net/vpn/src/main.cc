@@ -19,7 +19,7 @@ int main()
         net_stack::ip::ip_header_t *ip_header = (net_stack::ip::ip_header_t *)buffer;
         int cnt = t.tun_read(buffer, BS);
 
-        std::cout << cnt << " " << (int)ip_header->ver << " " << (int)ip_header->ihl*5 << std::endl;
+        std::cout << cnt << " " << (int)ip_header->ver << " " << (int)ip_header->ihl*4 << std::endl;
     }
 
     t.tun_close();
