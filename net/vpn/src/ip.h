@@ -4,6 +4,16 @@
 
 namespace net_stack
 {
+
+    enum uint8_t
+    {
+        ICMP = 1,
+        TCP = 6,
+        UDP = 17,
+
+    } IP_PROTOCOL;
+    
+
 #pragma pack(push)
 #pragma pack(1)
     struct ip_header_t

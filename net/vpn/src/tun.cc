@@ -15,12 +15,15 @@
 
 namespace dev
 {
-    tun_t::tun_t(const std::string &path, const std::string &name) : path(path), name(name)
+    tun_t::tun_t() : path(""), name(""), fd(-1)
     {
     }
 
-    int tun_t::tun_open()
+    int tun_t::tun_open(const std::string &path, const std::string &name)
     {
+        this->path = path;
+        this->name = name;
+
         if (name.size() > IFNAMSIZ)
         {
             return -1;
