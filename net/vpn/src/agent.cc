@@ -1,5 +1,4 @@
 #include "agent.h"
-#include "ip.h"
 
 namespace agent
 {
@@ -45,6 +44,8 @@ namespace agent
             return 0;
         }
 
+        int ip_header_len = (ip_header->ihl) << 5;
+
         if (ip_header->ver == 4) // ipv4
         {
             if (ip_header->protocol == net_stack::ip::ICMP) // icmp
@@ -66,6 +67,8 @@ namespace agent
         else
         {
         }
+
+        return 0;
     }
 
 }

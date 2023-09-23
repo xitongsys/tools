@@ -1,5 +1,8 @@
+#pragma once
+
 #include <cstdint>
 #include <tuple>
+#include <cstddef>
 
 namespace util
 {
@@ -32,6 +35,8 @@ namespace util
                 write_pos = 0;
                 return size_left;
             }
+
+            return size_right;
         }
 
         std::tuple<char *, size_t> write_buffer()

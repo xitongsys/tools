@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cstdint>
 
 namespace net_stack
