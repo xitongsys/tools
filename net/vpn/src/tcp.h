@@ -2,8 +2,8 @@
 
 namespace net_stack
 {
-    #pragma pack(push)
-    #pragma pack(1)
+#pragma pack(push)
+#pragma pack(1)
     struct tcp_header_t
     {
         uint16_t src_port;
@@ -17,5 +17,5 @@ namespace net_stack
         uint16_t urgent_p;
         uint8_t opt[0];
     };
-    #pragma pack(pop)
+#pragma pack(pop)
 }

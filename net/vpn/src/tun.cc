@@ -1,3 +1,8 @@
+#include <cstdio>
+#include <cstdlib>
+#include <unistd.h>
+#include <memory.h>
+
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
