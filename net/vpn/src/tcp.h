@@ -10,6 +10,22 @@ namespace net_stack
     {
         namespace tcp
         {
+
+            enum TCP_STATE : uint8_t
+            {
+                CLOSED,
+                LISTEN,
+                SYN_RECEIVED,
+                SYN_SENT,
+                ESTABLISHED,
+                FIN_WAIT_1,
+                FIN_WAIT_2,
+                CLOSING,
+                TIME_WAIT,
+                CLOSE_WAIT,
+                LAST_ACK,
+            };
+
 #pragma pack(push)
 #pragma pack(1)
             struct tcp_header_t
@@ -27,7 +43,7 @@ namespace net_stack
             };
 #pragma pack(pop)
 
-            struct tcp_socket_t : public ip_socket_t
+            struct tcp_socket_t : public net_stack::network_layer::ip::ip_socket_t
             {
             };
 

@@ -56,8 +56,9 @@ namespace net_stack
 
 
 
-            struct ip_socket
+            struct ip_socket_t
             {
+                char buffer;
             };
 
         
