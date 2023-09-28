@@ -13,49 +13,52 @@
 
 #include "tun.h"
 
-namespace dev
+namespace net_stack
 {
-    tun_t::tun_t() : path(""), name(""), fd(-1)
+    namespace dev_layer
     {
-    }
-
-    int tun_t::tun_open(const std::string &path, const std::string &name)
-    {
-        this->path = path;
-        this->name = name;
-
-        if (name.size() > IFNAMSIZ)
+        tun_t::tun_t() : path(""), name(""), fd(-1)
         {
-            return -1;
         }
 
-        fd = open(path.c_str(), O_RDWR);
-        if (fd == -1)
+        int tun_t::tun_open(const std::string &path, const std::string &name)
         {
-            return -1;
+            this->path = path;
+            this->name = name;
+
+            if (name.size() > IFNAMSIZ)
+            {
+                return -1;
+            }
+
+            fd = open(path.c_str(), O_RDWR);
+            if (fd == -1)
+            {
+                return -1;
+            }
+
+            struct ifreq ifr;
+            memset(&ifr, 0, sizeof(ifr));
+            ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
+            strncpy(ifr.ifr_name, name.c_str(), IFNAMSIZ);
+
+            return ioctl(fd, TUNSETIFF, &ifr);
         }
 
-        struct ifreq ifr;
-        memset(&ifr, 0, sizeof(ifr));
-        ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
-        strncpy(ifr.ifr_name, name.c_str(), IFNAMSIZ);
+        int tun_t::tun_close()
+        {
+            return close(fd);
+        }
 
-        return ioctl(fd, TUNSETIFF, &ifr);
-    }
+        int tun_t::tun_read(char *buffer, int size)
+        {
+            return read(fd, buffer, size);
+        }
 
-    int tun_t::tun_close()
-    {
-        return close(fd);
-    }
-
-    int tun_t::tun_read(char *buffer, int size)
-    {
-        return read(fd, buffer, size);
-    }
-
-    int tun_t::tun_write(char *buffer, int size)
-    {
-        return write(fd, buffer, size);
+        int tun_t::tun_write(char *buffer, int size)
+        {
+            return write(fd, buffer, size);
+        }
     }
 
 }

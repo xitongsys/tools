@@ -2,19 +2,22 @@
 
 #include <string>
 
-namespace dev
+namespace net_stack
 {
-    struct tun_t
+    namespace dev_layer
     {
-        std::string path; // "/dev/net/tun"
-        std::string name; // "tun0","tun1" ...
-        int fd;
+        struct tun_t
+        {
+            std::string path; // "/dev/net/tun"
+            std::string name; // "tun0","tun1" ...
+            int fd;
 
-        tun_t();
+            tun_t();
 
-        int tun_open(const std::string &path, const std::string &name);
-        int tun_close();
-        int tun_read(char *buffer, int size);
-        int tun_write(char *buffer, int size);
-    };
+            int tun_open(const std::string &path, const std::string &name);
+            int tun_close();
+            int tun_read(char *buffer, int size);
+            int tun_write(char *buffer, int size);
+        };
+    }
 }
