@@ -1,8 +1,12 @@
 #pragma once
 
 #include <cstdint>
+#include <list>
+#include <memory>
 
 #include "env.h"
+#include "sk_buffer.h"
+#include "dev.h"
 
 namespace net_stack
 {
@@ -11,7 +15,7 @@ namespace net_stack
         namespace ip
         {
 
-            enum Protocol : uint8_t
+            enum PROTOCOL : uint8_t
             {
                 ICMP = 1,
                 TCP = 6,
@@ -53,15 +57,16 @@ namespace net_stack
             };
 #pragma pack(pop)
 
-
-
-
             struct ip_socket_t
             {
-                char buffer;
-            };
+                std::shared_ptr<dev_layer::dev_t> dev;
 
-        
+                uint8_t ver;
+                uint32_t src, dst;
+                PROTOCOL protocol;
+
+                std::list<sk_buffer_t> sk_buffers;
+            };
 
         }
     }

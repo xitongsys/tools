@@ -45,6 +45,8 @@ namespace net_stack
 
             struct tcp_socket_t : public net_stack::network_layer::ip::ip_socket_t
             {
+                uint16_t src_port, dst_port;
+                TCP_STATE state;
             };
 
         }
