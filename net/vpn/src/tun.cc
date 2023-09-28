@@ -84,8 +84,8 @@ namespace net_stack
 
     int tun_t::process_input()
     {
-        std::shared_ptr<sk_buffer_t> p_sk_buff = std::make_shared<sk_buffer_t>(mtu() + 16);
-        
+        std::shared_ptr<sk_buffer_t> p_sk_buff = std::make_shared<sk_buffer_t>(mtu());
+
     }
 
     int tun_t::process_output()
