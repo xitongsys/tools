@@ -7,7 +7,7 @@
 #include "env.h"
 #include "sk_buffer.h"
 #include "dev.h"
-#include "socket.h"
+#include "sock.h"
 
 namespace net_stack
 {
@@ -28,35 +28,29 @@ namespace net_stack
         {
             struct
             {
+#if (IS_BIG_ENDIAN)
+                uint8_t ver : 4;
+                uint8_t ihl : 4;
+#else
                 uint8_t ihl : 4;
                 uint8_t ver : 4;
+#endif
             };
 
-            struct
-            {
-                uint8_t ecn : 2;
-                uint8_t dscp : 6;
-            } tos;
-
-            uint16_t total_length;
+            uint8_t tos;
+            uint16_t total_len;
             uint16_t id;
-
-            struct
-            {
-                uint16_t offset : 13; // 13 bits fragment-offset
-                uint16_t flags : 3;   // 3 bits flags and
-            };
-
+            uint16_t frag_off;
             uint8_t ttl;
             uint8_t protocol;
-            uint16_t checksum;
-            uint32_t src_addr;
-            uint16_t dst_addr;
+            uint16_t check;
+            uint32_t saddr;
+            uint16_t daddr;
             uint8_t opt[0];
         };
 #pragma pack(pop)
 
-        struct ip_socket_t : public socket_t
+        struct ip_sock_t : public sock_t
         {
             uint8_t ver;
             uint32_t src, dst;

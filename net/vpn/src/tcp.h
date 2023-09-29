@@ -41,7 +41,7 @@ namespace net_stack
         };
 #pragma pack(pop)
 
-        struct tcp_socket_t : public net_stack::ip::ip_socket_t
+        struct tcp_sock_t : public net_stack::ip::ip_sock_t
         {
             uint16_t src_port, dst_port;
             TCP_STATE state;

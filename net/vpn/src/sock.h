@@ -7,7 +7,7 @@
 
 namespace net_stack
 {
-    struct socket_t
+    struct sock_t
     {
         std::shared_ptr<dev_t> dev;
         std::list<sk_buffer_t> sk_buffers;
