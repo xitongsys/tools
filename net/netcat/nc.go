@@ -13,22 +13,22 @@ import (
 var hostname string
 var port int
 
-//-x 127.0.0.1:3128
+// -x 127.0.0.1:3128
 var proxy_address string
 
-//-X connect
+// -X connect
 var proxy_protocol string
 
-//-i interval
+// -i interval
 var interval int
 
-//-s 127.0.0.1
+// -s 127.0.0.1
 var source_ip_addr string
 
-//-p 33
+// -p 33
 var source_port int
 
-//-l
+// -l
 var is_listen bool
 
 func parse_paras() (err error) {
@@ -118,7 +118,6 @@ func parse_paras() (err error) {
 }
 
 func listen_mode() {
-	log.Println("listen mode not support")
 }
 
 func connect_mode() {
@@ -189,9 +188,9 @@ func open_conn() (conn io.ReadWriter, err error) {
 		}
 
 	} else if proxy_protocol == "4" { // SOCKS4
-		return nil, nil
+		return nil, fmt.Errorf("not supported protocol %s", proxy_protocol)
 	} else if proxy_protocol == "5" { // SOCKS5
-		return nil, nil
+		return nil, fmt.Errorf("not supported protocol %s", proxy_protocol)
 	} else {
 		return nil, fmt.Errorf("unknown protocol %s", proxy_protocol)
 	}
