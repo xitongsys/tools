@@ -5,7 +5,11 @@
 <body style="text-align: center;">
     <div style="text-align: center;">
         <img id="screen" draggable="false" src="/static/screen.png" width="500px" onclick="tap()" onmousemove="move()"
-            onmousedown="mousedown()" onmouseup="mouseup()" />
+            onmousedown="mousedown()" onmouseup="mouseup()" 
+            touchstart="mousedown()" touchend="mouseup()" />
+
+        <p />
+        <button onclick="power()"> POWER </button>
 
     </div>
 
@@ -31,7 +35,12 @@
                 console.log(resp)
             })
             .catch(error => { console.error })
+    }
 
+    function power() {
+        fetch('/power')
+            .then(response => { })
+            .catch(error => { console.error })
     }
 
     function tap() {
@@ -44,10 +53,6 @@
             .catch(error => { console.error })
     }
 
-    function move() {
-
-    }
-
     function mousedown() {
         downX = event.offsetX;
         downY = event.offsetY;
@@ -57,7 +62,7 @@
     function mouseup() {
         var x1 = downX / W, y1 = downY / H;
         var x2 = event.offsetX / W, y2 = event.offsetY / H;
-        console.log('swipe',x1,y1,x2,y2)
+        console.log('swipe', x1, y1, x2, y2)
 
         if (x1 > 0 && y1 > 0) {
             fetch('/swipe?x1=' + x1 + '&y1=' + y1 + '&x2=' + x2 + '&y2=' + y2)
