@@ -25,7 +25,7 @@ class WebServer:
             self.adb.screencast()
             timer = Timer(1, refresh_timer)
             timer.start()
-        refresh_timer()     
+        #refresh_timer()     
 
 
         @app.route('/')
