@@ -4,7 +4,7 @@
 
 <body style="text-align: center;">
     <div style="text-align: center;">
-        <img id="screen" draggable="false" src="/static/screen.png" width="500px" onclick="tap()" onmousemove="move()"
+        <img id="screen" draggable="false" src="/static/screen.jpg" width="800px" onclick="tap()"
             onmousedown="mousedown()" onmouseup="mouseup()" touchstart="mousedown()" touchend="mouseup()" />
 
         <p />
@@ -25,13 +25,15 @@
     setInterval(refresh, 500)
 
     function refresh() {
-        screen.src = '/static/screen.png?t=' + new Date().getTime();
+        screen.src = '/static/screen.jpg?t=' + new Date().getTime();
+        H = screen.clientHeight;
+        W = screen.clientWidth;
     }
 
     function refresh_force() {
         fetch('/refresh')
             .then(resp => {
-                screen.src = '/static/screen.png?t=' + new Date().getTime();
+                screen.src = '/static/screen.jpg?t=' + new Date().getTime();
                 console.log(resp)
             })
             .catch(error => { console.error })
@@ -80,7 +82,7 @@
     }
 
     function unlock() {
-        fetch('/swipe?x1=0&y1=0&x2=1000&y2=1000')
+        fetch('/swipe?x1=0&y1=0&x2=1000&y2=1000&dt=100')
             .then(response => { })
             .catch(error => { console.error })
     }

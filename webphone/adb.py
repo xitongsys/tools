@@ -13,7 +13,10 @@ class Adb:
 
     def screencast(self):
         os.system(f'{self.adb_path} shell screencap /sdcard/screen.png')
-        return os.system(f'{self.adb_path} pull /sdcard/screen.png static/screen.png')
+        os.system(f'{self.adb_path} pull /sdcard/screen.png static/screen.jpg')
+        from PIL import Image
+        img_png = Image.open('static/screen.jpg').convert('RGB')
+        img_png.save('static/screen.jpg')
 
     def tap(self, x, y):
         return os.system(f'{self.adb_path} shell input tap {x} {y}')

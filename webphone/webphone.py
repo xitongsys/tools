@@ -15,7 +15,7 @@ class WebServer:
         self.port = port
         self.adb = Adb(r'C:\Users\zxt\AppData\Local\Android\Sdk\platform-tools\adb.exe')
         self.adb.screencast()
-        self.h, self.w, _ = cv2.imread('static/screen.png').shape
+        self.h, self.w, _ = cv2.imread('static/screen.jpg').shape
             
     def run(self):
         app = Flask(__name__)
