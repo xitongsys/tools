@@ -18,8 +18,8 @@ class Adb:
     def tap(self, x, y):
         return os.system(f'{self.adb_path} shell input tap {x} {y}')
 
-    def swipe(self, x1,y1,x2,y2):
-        return os.system(f'{self.adb_path} shell input swipe {x1} {y1} {x2} {y2}')
+    def swipe(self, x1,y1,x2,y2,dt=100):
+        return os.system(f'{self.adb_path} shell input swipe {x1} {y1} {x2} {y2} {dt}')
 
     def key(self, k):
         return os.system(f'{self.adb_path} shell input keyevent {k}')

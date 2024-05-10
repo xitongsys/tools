@@ -20,7 +20,7 @@
     var screen = document.getElementById("screen")
     var H = screen.clientHeight;
     var W = screen.clientWidth;
-    var downX = -1, downY = -1;
+    var downX = -1, downY = -1, downTime = null;
 
     setInterval(refresh, 500)
 
@@ -56,22 +56,27 @@
     function mousedown() {
         downX = event.offsetX;
         downY = event.offsetY;
+        downTime = new Date().getTime()
 
     }
 
     function mouseup() {
         var x1 = downX / W, y1 = downY / H;
         var x2 = event.offsetX / W, y2 = event.offsetY / H;
-        console.log('swipe', x1, y1, x2, y2)
+        var upTime = new Date().getTime()
 
-        if (x1 > 0 && y1 > 0) {
-            fetch('/swipe?x1=' + x1 + '&y1=' + y1 + '&x2=' + x2 + '&y2=' + y2)
+        if (x1 > 0 && y1 > 0 && x2 > 0 && y2 > 0 && downTime != null) {
+            var dt = upTime - downTime
+            console.log('swipe', x1, y1, x2, y2, dt)
+
+            fetch('/swipe?x1=' + x1 + '&y1=' + y1 + '&x2=' + x2 + '&y2=' + y2 + '&dt=' + dt)
                 .then(response => { })
                 .catch(error => { console.error })
         }
 
         downX = -1;
         downY = -1;
+        downTime = null;
     }
 
     function unlock() {

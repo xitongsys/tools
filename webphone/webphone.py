@@ -23,7 +23,7 @@ class WebServer:
 
         def refresh_timer():
             self.adb.screencast()
-            timer = Timer(0.5, refresh_timer)
+            timer = Timer(1, refresh_timer)
             timer.start()
         refresh_timer()     
 
@@ -52,7 +52,8 @@ class WebServer:
         def swipe():
             x1,y1 = int(float(request.args.get('x1'))*self.w), int(float(request.args.get('y1'))*self.h)
             x2,y2 = int(float(request.args.get('x2'))*self.w), int(float(request.args.get('y2'))*self.h)
-            res = self.adb.swipe(x1, y1, x2, y2)
+            dt = int(request.args.get('dt'))
+            res = self.adb.swipe(x1, y1, x2, y2, dt)
             return jsonify(res)
 
 
