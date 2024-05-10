@@ -1,0 +1,75 @@
+<html>
+
+<head></head>
+
+<body style="text-align: center;">
+    <div style="text-align: center;">
+        <img id="screen" draggable="false" src="/static/screen.png" width="500px" onclick="tap()" onmousemove="move()"
+            onmousedown="mousedown()" onmouseup="mouseup()" />
+
+    </div>
+
+</body>
+
+
+<script>
+    var screen = document.getElementById("screen")
+    var H = screen.clientHeight;
+    var W = screen.clientWidth;
+    var downX = -1, downY = -1;
+
+    setInterval(refresh, 500)
+
+    function refresh() {
+        screen.src = '/static/screen.png?t=' + new Date().getTime();
+    }
+
+    function refresh_force() {
+        fetch('/refresh')
+            .then(resp => {
+                screen.src = '/static/screen.png?t=' + new Date().getTime();
+                console.log(resp)
+            })
+            .catch(error => { console.error })
+
+    }
+
+    function tap() {
+        var x = event.offsetX / W;
+        var y = event.offsetY / H;
+        console.log('tap', x, y)
+
+        fetch('/tap?x=' + x + '&' + 'y=' + y)
+            .then(response => { })
+            .catch(error => { console.error })
+    }
+
+    function move() {
+
+    }
+
+    function mousedown() {
+        downX = event.offsetX;
+        downY = event.offsetY;
+
+    }
+
+    function mouseup() {
+        var x1 = downX / W, y1 = downY / H;
+        var x2 = event.offsetX / W, y2 = event.offsetY / H;
+        console.log('swipe',x1,y1,x2,y2)
+
+        if (x1 > 0 && y1 > 0) {
+            fetch('/swipe?x1=' + x1 + '&y1=' + y1 + '&x2=' + x2 + '&y2=' + y2)
+                .then(response => { })
+                .catch(error => { console.error })
+        }
+
+        downX = -1;
+        downY = -1;
+
+    }
+
+</script>
+
+</html>
