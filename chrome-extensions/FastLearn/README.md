@@ -5,6 +5,7 @@
 学习记录通过下面这个request上传
 ![alt text](image.png)
 
+
 ```javascript
 fetch("https://peixun.amac.org.cn/index.php?m=Api&agency=3&log_update", {
   "headers": {
