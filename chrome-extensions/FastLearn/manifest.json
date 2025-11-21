@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "FastLearn",
+  "version": "1.0",
+  "description": "FastLearn",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "desc"
+  },
+
+  "permissions":[
+  ],
+
+  "host_permissions": [
+    "*://*.xxx.com/*",
+    "https://peixun.amac.org.cn/*",
+    "https://videocloud.cn-hangzhou.log.aliyuncs.com/*"
+  ],
+
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+
+   "web_accessible_resources": [
+    {
+      "resources": ["injected.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+
+  "icons": {
+    "128": "icons/icon128.png"
+  }
+
+
+}
+
